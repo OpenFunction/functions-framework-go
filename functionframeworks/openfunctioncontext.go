@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"strings"
@@ -139,7 +140,7 @@ func (ctx *OpenFunctionContext) SendAll(data interface{}) error {
 }
 
 func (ctx *OpenFunctionContext) GetInput(r *http.Request) (interface{}, error) {
-	data, err := io.ReadAll(r.Body)
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, err
 	}
