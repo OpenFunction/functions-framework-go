@@ -17,9 +17,8 @@ import (
 
 func TestRegisterHTTPFunction(t *testing.T) {
 	h := http.NewServeMux()
-	err := registerHTTPFunction("/", func(w http.ResponseWriter, r *http.Request) error {
+	err := registerHTTPFunction("/", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello World!")
-		return nil
 	}, h)
 	if err != nil {
 		t.Fatalf("Error: %v\n", err)
