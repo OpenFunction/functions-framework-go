@@ -18,21 +18,37 @@ const (
 	errorStatus          = "error"
 )
 
-func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request)) error {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+var (
+	handler = http.DefaultServeMux
+)
+
+func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request) error) error {
+	return registerHTTPFunction("/", fn, handler)
+}
+
+func RegisterOpenFunction(fn func(*OpenFunctionContext, *http.Request) int) error {
+	return registerOpenFunction(fn, handler)
+}
+
+func RegisterCloudEventFunction(ctx context.Context, fn func(context.Context, cloudevents.Event) error) error {
+	return registerCloudEventFunction(ctx, fn, handler)
+}
+
+func registerHTTPFunction(path string, fn func(http.ResponseWriter, *http.Request) error, h *http.ServeMux) error {
+	h.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		defer recoverPanicHTTP(w, "Function panic")
 		fn(w, r)
 	})
 	return nil
 }
 
-func RegisterOpenFunction(fn func(*OpenFunctionContext, *http.Request) int) error {
+func registerOpenFunction(fn func(*OpenFunctionContext, *http.Request) int, h *http.ServeMux) error {
 	ctx, err := GetOpenFunctionContext()
 	if err != nil {
 		return err
 	}
 
-	http.HandleFunc(ctx.Input.Url, func(w http.ResponseWriter, r *http.Request) {
+	h.HandleFunc(ctx.Input.Url, func(w http.ResponseWriter, r *http.Request) {
 		defer recoverPanicHTTP(w, "Function panic")
 		code := fn(ctx, r)
 		w.WriteHeader(code)
@@ -41,7 +57,7 @@ func RegisterOpenFunction(fn func(*OpenFunctionContext, *http.Request) int) erro
 	return nil
 }
 
-func RegisterCloudEventFunction(ctx context.Context, fn func(context.Context, cloudevents.Event)) error {
+func registerCloudEventFunction(ctx context.Context, fn func(context.Context, cloudevents.Event) error, h *http.ServeMux) error {
 	p, err := cloudevents.NewHTTP()
 	if err != nil {
 		return fmt.Errorf("failed to create protocol: %v", err)
@@ -53,13 +69,13 @@ func RegisterCloudEventFunction(ctx context.Context, fn func(context.Context, cl
 		return fmt.Errorf("failed to create handler: %v", err)
 	}
 
-	http.Handle("/", handleFn)
+	h.Handle("/", handleFn)
 	return nil
 }
 
 func Start(port string) error {
 	log.Printf("Function serving: listening on port %s", port)
-	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), nil))
+	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), handler))
 	return nil
 }
 

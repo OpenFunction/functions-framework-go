@@ -3,55 +3,56 @@ package demo
 import (
 	"fmt"
 	"github.com/OpenFunction/functions-framework-go/functionframeworks"
-	"io"
+	"log"
 	"net/http"
-	"time"
 )
-
-func InputOnlyFunction(ctx *functionframeworks.OpenFunctionContext, r *http.Request) int {
-	data, err := io.ReadAll(r.Body)
-	if err != nil {
-		fmt.Errorf("Failed to get data: %v\n", err)
-		return 500
-	}
-
-	if string(data) == "Hello" {
-		fmt.Println("User Success!")
-		return 200
-	} else {
-		fmt.Println("User Failed!")
-		return 500
-	}
-}
 
 func BindingsFunction(ctx *functionframeworks.OpenFunctionContext, r *http.Request) int {
 	// ctx.GetInput is equal to "content, err := io.ReadAll(r.Body)"
 	content, err := ctx.GetInput(r)
 
 	type Data struct {
-		OrderId int `json:"order_id"`
-		Content string `json:"content"`
+		Type string `json:"type"`
+		Content interface{} `json:"content"`
 	}
 	type Payload struct {
 		Data *Data `json:"data"`
 		Operation string `json:"operation"`
 	}
 
-	n := 0
+	p := &Payload{}
+	p.Operation = "create"
 
-	for {
-		n++
-		p := &Payload{}
+	switch v := content.(type) {
+	case string:
 		p.Data = &Data{
-			OrderId: n,
+			Type: fmt.Sprintln(v),
 			Content: content.(string),
 		}
-		p.Operation = "create"
-		time.Sleep(1 * time.Second)
-
-		err := ctx.SendTo(p, "OUTPUT1")
+		err = ctx.SendTo(p, "op1")
+		log.Printf("Send %v to op1\n", content)
 		if err != nil {
-			fmt.Errorf("Error: %v\n", err)
+			log.Printf("Error: %v\n", err)
+		}
+	case int:
+		p.Data = &Data{
+			Type: fmt.Sprintln(v),
+			Content: content.(int),
+		}
+		err = ctx.SendTo(p, "op2")
+		log.Printf("Send %v to op2\n", content)
+		if err != nil {
+			log.Printf("Error: %v\n", err)
+		}
+	default:
+		p.Data = &Data{
+			Type: fmt.Sprintln(v),
+			Content: content,
+		}
+		err = ctx.SendTo(p, "op2")
+		log.Printf("Send %v to op2\n", content)
+		if err != nil {
+			log.Printf("Error: %v\n", err)
 		}
 	}
 
