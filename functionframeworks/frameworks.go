@@ -22,7 +22,7 @@ var (
 	handler = http.DefaultServeMux
 )
 
-func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request) error) error {
+func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request)) error {
 	return registerHTTPFunction("/", fn, handler)
 }
 
@@ -34,7 +34,7 @@ func RegisterCloudEventFunction(ctx context.Context, fn func(context.Context, cl
 	return registerCloudEventFunction(ctx, fn, handler)
 }
 
-func registerHTTPFunction(path string, fn func(http.ResponseWriter, *http.Request) error, h *http.ServeMux) error {
+func registerHTTPFunction(path string, fn func(http.ResponseWriter, *http.Request), h *http.ServeMux) error {
 	h.HandleFunc(path, func(w http.ResponseWriter, r *http.Request) {
 		defer recoverPanicHTTP(w, "Function panic")
 		fn(w, r)

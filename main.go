@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/OpenFunction/functions-framework-go/functionframeworks"
 	userfunction "github.com/OpenFunction/functions-framework-go/testdata/demo"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -12,17 +13,17 @@ import (
 
 func register(fn interface{}) error {
 	ctx := context.Background()
-	if fnHTTP, ok := fn.(func(http.ResponseWriter, *http.Request) error); ok {
+	if fnHTTP, ok := fn.(func(http.ResponseWriter, *http.Request)); ok {
 		if err := functionframeworks.RegisterHTTPFunction(ctx, fnHTTP); err != nil {
-			return err
+			return fmt.Errorf("Function failed to register: %v\n", err)
 		}
 	} else if fnCloudEvent, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
 		if err := functionframeworks.RegisterCloudEventFunction(ctx, fnCloudEvent); err != nil {
-			return err
+			return fmt.Errorf("Function failed to register: %v\n", err)
 		}
 	} else if fnOpenFunction, ok := fn.(func(*functionframeworks.OpenFunctionContext, *http.Request) int); ok {
 		if err := functionframeworks.RegisterOpenFunction(fnOpenFunction); err != nil {
-			return err
+			return fmt.Errorf("Function failed to register: %v\n", err)
 		}
 	}
 	return nil
