@@ -6,12 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
-	"github.com/gofrs/uuid"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"os"
-	"strings"
 	"testing"
 )
 
@@ -138,64 +135,5 @@ func TestCloudEventFunction(t *testing.T) {
 		if resp.Header.Get(functionStatusHeader) != tc.header {
 			t.Errorf("TestCloudEventFunction(%s): response header = %q, want %q", tc.name, resp.Header.Get(functionStatusHeader), tc.header)
 		}
-	}
-}
-
-func TestRegisterOpenFunction(t *testing.T) {
-	h := http.NewServeMux()
-	requestID, err := uuid.NewV4()
-	ofctx := &OpenFunctionContext{
-		Name:      "Bindings",
-		Version:   "v1",
-		RequestID: requestID.String(),
-		Input: &Input{
-			Enabled: func(v bool) *bool { return &v }(true),
-			Url:     "/sample",
-		},
-		Outputs: &Outputs{
-			Enabled: func(v bool) *bool { return &v }(true),
-			OutputObjects: map[string]*Output{
-				"OP1": {
-					Url:    "http://localhost:3500/bingdings/op1",
-					Method: "POST",
-				},
-				"OP2": {
-					Url:    "http://localhost:3500/pubsub/op2",
-					Method: "PUT",
-				},
-			},
-		},
-		Runtime: "Dapr",
-	}
-	ofctxByte, err := json.Marshal(ofctx)
-	os.Setenv("FUNC_CONTEXT", string(ofctxByte))
-
-	err = registerOpenFunction(func(ctx *OpenFunctionContext, r *http.Request) int {
-		_, e := ctx.GetInput(r)
-		if e != nil {
-			return 500
-		}
-
-		e = ctx.SendTo("Hello", "OP1")
-		if e != nil {
-			return 500
-		}
-		return 200
-	}, h)
-	if err != nil {
-		t.Fatalf("Error: %v\n", err)
-	}
-
-	srv := httptest.NewServer(h)
-
-	inputData, err := json.Marshal("Hello World!")
-	url := srv.URL + ofctx.Input.Url
-	resp, err := http.Post(url, "application/json", strings.NewReader(string(inputData)))
-	if err != nil {
-		t.Fatalf("http.Post: %v", err)
-	}
-
-	if got, want := resp.StatusCode, 500; got != want {
-		t.Fatalf("TestOpenFunction: got %v; want %v", got, want)
 	}
 }

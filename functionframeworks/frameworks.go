@@ -2,7 +2,11 @@ package functionframeworks
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	ofctx "github.com/OpenFunction/functions-framework-go/openfunction-context"
+	dapr "github.com/dapr/go-sdk/service/common"
+	daprd "github.com/dapr/go-sdk/service/grpc"
 	"log"
 	"net/http"
 	"os"
@@ -19,14 +23,15 @@ const (
 )
 
 var (
-	handler = http.DefaultServeMux
+	handler     = http.DefaultServeMux
+	grpcHandler dapr.Service
 )
 
 func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request)) error {
 	return registerHTTPFunction("/", fn, handler)
 }
 
-func RegisterOpenFunction(fn func(*OpenFunctionContext, *http.Request) int) error {
+func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContext, interface{}) int) error {
 	return registerOpenFunction(fn, handler)
 }
 
@@ -42,17 +47,68 @@ func registerHTTPFunction(path string, fn func(http.ResponseWriter, *http.Reques
 	return nil
 }
 
-func registerOpenFunction(fn func(*OpenFunctionContext, *http.Request) int, h *http.ServeMux) error {
-	ctx, err := GetOpenFunctionContext()
+func registerOpenFunction(fn func(*ofctx.OpenFunctionContext, interface{}) int, h *http.ServeMux) error {
+	ctx, err := ofctx.GetOpenFunctionContext()
 	if err != nil {
 		return err
 	}
 
-	h.HandleFunc(ctx.Input.Url, func(w http.ResponseWriter, r *http.Request) {
-		defer recoverPanicHTTP(w, "Function panic")
-		code := fn(ctx, r)
-		w.WriteHeader(code)
-	})
+	if *ctx.Input.Enabled {
+		if ctx.Input.Kind == ofctx.HTTP {
+			h.HandleFunc(ctx.Input.Pattern, func(w http.ResponseWriter, r *http.Request) {
+				defer recoverPanicHTTP(w, "Function panic")
+				code := fn(ctx, r)
+				w.WriteHeader(code)
+			})
+		}
+
+		if ctx.Input.Kind == ofctx.GRPC && ctx.Runtime == ofctx.Dapr {
+			grpcHandler, err = daprd.NewService(fmt.Sprintf(":%s", ctx.Input.Port))
+			if err != nil {
+				return err
+			}
+			switch ctx.Input.InType {
+			case ofctx.DaprBinding:
+				err = grpcHandler.AddBindingInvocationHandler(ctx.Input.Pattern, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
+					code := fn(ctx, in)
+					if code == 200 {
+						return nil, nil
+					} else {
+						return nil, errors.New("error")
+
+					}
+				})
+			case ofctx.DaprTopic:
+				sub := &dapr.Subscription{
+					PubsubName: ctx.Input.Name,
+					Topic:      ctx.Input.Pattern,
+				}
+				err = grpcHandler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
+					code := fn(ctx, e)
+					if code == 200 {
+						return false, nil
+					} else {
+						return true, errors.New("error")
+					}
+				})
+			case ofctx.DaprService:
+				err = grpcHandler.AddServiceInvocationHandler(ctx.Input.Pattern, func(c context.Context, in *dapr.InvocationEvent) (out *dapr.Content, err error) {
+					code := fn(ctx, in)
+					if code == 200 {
+						return ctx.Out.(*dapr.Content), nil
+					} else {
+						return nil, errors.New("error")
+					}
+				})
+			default:
+				return errors.New("invalid input type")
+			}
+		}
+
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
@@ -73,9 +129,41 @@ func registerCloudEventFunction(ctx context.Context, fn func(context.Context, cl
 	return nil
 }
 
-func Start(port string) error {
-	log.Printf("Function serving: listening on port %s", port)
+func Start() error {
+	ctx, err := ofctx.GetOpenFunctionContext()
+	if err != nil {
+		return err
+	}
+
+	switch ctx.Input.Kind {
+	case ofctx.HTTP:
+		port := "8080"
+		if ctx.Input.Port != "" {
+			port = ctx.Input.Port
+		}
+		err = startHTTP(port)
+	case ofctx.GRPC:
+		port := "50001"
+		if ctx.Input.Port != "" {
+			port = ctx.Input.Port
+		}
+		err = startGRPC(port)
+	}
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func startHTTP(port string) error {
+	log.Printf("Function serving http: listening on port %s", port)
 	log.Fatal(http.ListenAndServe(fmt.Sprintf(":%s", port), handler))
+	return nil
+}
+
+func startGRPC(port string) error {
+	log.Printf("Function serving grpc: listening on port %s", port)
+	log.Fatal(grpcHandler.Start())
 	return nil
 }
 

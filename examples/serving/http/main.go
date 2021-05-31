@@ -39,11 +39,6 @@ func main() {
 		log.Fatalf("Failed to register: %v\n", err)
 	}
 
-	// Dapr bindings gRPC example
-	//if err := register(userfunction.BindingsGRPCFunction); err != nil {
-	//	log.Fatalf("Failed to register: %v\n", err)
-	//}
-
 	if err := functionframeworks.Start(); err != nil {
 		log.Fatalf("Failed to start: %v\n", err)
 	}
