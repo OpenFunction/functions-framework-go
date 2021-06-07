@@ -35,7 +35,7 @@ func register(fn interface{}) error {
 
 func main() {
 	// Dapr bindings HTTP example
-	if err := register(user_functions.BindingsHTTPFunction); err != nil {
+	if err := register(user_functions.BindingsHTTPNoOutput); err != nil {
 		log.Fatalf("Failed to register: %v\n", err)
 	}
 

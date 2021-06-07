@@ -6,7 +6,7 @@ import (
 	"log"
 )
 
-func ServiceGRPCFunction(ctx *ofctx.OpenFunctionContext, in interface{}) int {
+func ServiceGRPCServer(ctx *ofctx.OpenFunctionContext, in interface{}) int {
 	input := in.(*common.InvocationEvent)
 	if input == nil {
 		log.Printf("nil invocation parameter")
@@ -16,10 +16,5 @@ func ServiceGRPCFunction(ctx *ofctx.OpenFunctionContext, in interface{}) int {
 		"echo - ContentType:%s, Verb:%s, QueryString:%s, %s",
 		input.ContentType, input.Verb, input.QueryString, input.Data,
 	)
-	ctx.Out = &common.Content{
-		Data:        input.Data,
-		ContentType: input.ContentType,
-		DataTypeURL: input.DataTypeURL,
-	}
 	return 200
 }
