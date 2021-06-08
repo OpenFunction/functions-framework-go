@@ -155,22 +155,26 @@ func registerCloudEventFunction(ctx context.Context, fn func(context.Context, cl
 func Start() error {
 	ctx, err := ofctx.GetOpenFunctionContext()
 	if err != nil {
-		return err
-	}
-
-	switch ctx.Protocol {
-	case ofctx.HTTP:
-		port := "8080"
-		if ctx.Port != "" {
-			port = ctx.Port
+		port := os.Getenv("PORT")
+		if port == "" {
+			port = "8080"
 		}
 		err = startHTTP(port)
-	case ofctx.GRPC:
-		port := "50001"
-		if ctx.Port != "" {
-			port = ctx.Port
+	} else {
+		switch ctx.Protocol {
+		case ofctx.HTTP:
+			port := "8080"
+			if ctx.Port != "" {
+				port = ctx.Port
+			}
+			err = startHTTP(port)
+		case ofctx.GRPC:
+			port := "50001"
+			if ctx.Port != "" {
+				port = ctx.Port
+			}
+			err = startGRPC(port)
 		}
-		err = startGRPC(port)
 	}
 	if err != nil {
 		return err
