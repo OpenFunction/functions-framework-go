@@ -20,5 +20,8 @@ func main() {
 
 	http.HandleFunc("/echo", echo)
 
-	http.ListenAndServe(":7489", nil)
+	err := http.ListenAndServe(":7489", nil)
+	if err != nil {
+		return
+	}
 }

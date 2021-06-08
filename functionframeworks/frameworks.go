@@ -54,7 +54,7 @@ func registerOpenFunction(fn func(*ofctx.OpenFunctionContext, interface{}) int, 
 	}
 
 	if *ctx.Input.Enabled {
-		if ctx.Input.Kind == ofctx.HTTP {
+		if ctx.Protocol == ofctx.HTTP {
 			h.HandleFunc(ctx.Input.Pattern, func(w http.ResponseWriter, r *http.Request) {
 				defer recoverPanicHTTP(w, "Function panic")
 				code := fn(ctx, r)
@@ -62,11 +62,12 @@ func registerOpenFunction(fn func(*ofctx.OpenFunctionContext, interface{}) int, 
 			})
 		}
 
-		if ctx.Input.Kind == ofctx.GRPC && ctx.Runtime == ofctx.Dapr {
-			grpcHandler, err = daprd.NewService(fmt.Sprintf(":%s", ctx.Input.Port))
+		if ctx.Protocol == ofctx.GRPC && ctx.Runtime == ofctx.Dapr {
+			grpcHandler, err = daprd.NewService(fmt.Sprintf(":%s", ctx.Port))
 			if err != nil {
 				return err
 			}
+
 			switch ctx.Input.InType {
 			case ofctx.DaprBinding:
 				err = grpcHandler.AddBindingInvocationHandler(ctx.Input.Pattern, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
@@ -95,7 +96,7 @@ func registerOpenFunction(fn func(*ofctx.OpenFunctionContext, interface{}) int, 
 				err = grpcHandler.AddServiceInvocationHandler(ctx.Input.Pattern, func(c context.Context, in *dapr.InvocationEvent) (out *dapr.Content, err error) {
 					code := fn(ctx, in)
 					if code == 200 {
-						return ctx.Out.(*dapr.Content), nil
+						return nil, nil
 					} else {
 						return nil, errors.New("error")
 					}
@@ -103,10 +104,32 @@ func registerOpenFunction(fn func(*ofctx.OpenFunctionContext, interface{}) int, 
 			default:
 				return errors.New("invalid input type")
 			}
+			if err != nil {
+				return err
+			}
 		}
 
-		if err != nil {
-			return err
+	} else {
+		if ctx.Protocol == ofctx.HTTP {
+			h.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+				defer recoverPanicHTTP(w, "Function panic")
+				code := fn(ctx, r)
+				w.WriteHeader(code)
+			})
+		}
+
+		if ctx.Protocol == ofctx.GRPC {
+			grpcHandler, err = daprd.NewService(fmt.Sprintf(":%s", ctx.Port))
+
+			if err != nil {
+				return err
+			}
+			code := fn(ctx, nil)
+			if code == 200 {
+				return nil
+			} else {
+				return errors.New("error")
+			}
 		}
 	}
 
@@ -135,17 +158,17 @@ func Start() error {
 		return err
 	}
 
-	switch ctx.Input.Kind {
+	switch ctx.Protocol {
 	case ofctx.HTTP:
 		port := "8080"
-		if ctx.Input.Port != "" {
-			port = ctx.Input.Port
+		if ctx.Port != "" {
+			port = ctx.Port
 		}
 		err = startHTTP(port)
 	case ofctx.GRPC:
 		port := "50001"
-		if ctx.Input.Port != "" {
-			port = ctx.Input.Port
+		if ctx.Port != "" {
+			port = ctx.Port
 		}
 		err = startGRPC(port)
 	}

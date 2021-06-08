@@ -35,19 +35,9 @@ func register(fn interface{}) error {
 
 func main() {
 	// Dapr bindings gRPC example
-	if err := register(user_functions.BindingsGRPCFunction); err != nil {
+	if err := register(user_functions.BindingsGRPCOutput); err != nil {
 		log.Fatalf("Failed to register: %v\n", err)
 	}
-
-	// Dapr pubsub gRPC example
-	//if err := register(user_functions.PubsubGRPCFunction); err != nil {
-	//	log.Fatalf("Failed to register: %v\n", err)
-	//}
-
-	// Dapr service invoke gRPC example
-	//if err := register(user_functions.ServiceGRPCFunction); err != nil {
-	//	log.Fatalf("Failed to register: %v\n", err)
-	//}
 
 	if err := functionframeworks.Start(); err != nil {
 		log.Fatalf("Failed to start: %v\n", err)

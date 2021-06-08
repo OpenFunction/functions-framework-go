@@ -1,19 +1,20 @@
 package openfunctioncontext
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	dapr "github.com/dapr/go-sdk/client"
 	"io"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 )
 
 const (
-	applicationJson   = "application/json"
+	ApplicationJson   = "application/json"
 	HTTPTimeoutSecond = 60
 )
 
@@ -32,7 +33,7 @@ var (
 
 // ContextInterface represents Dapr callback service
 type ContextInterface interface {
-	SendTo(data interface{}, outputName string) error
+	SendTo(data []byte, outputName string) error
 	GetInput() (interface{}, error)
 }
 
@@ -50,7 +51,7 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 	}
 
 	if *ctx.Input.Enabled {
-		switch ctx.Input.Kind {
+		switch ctx.Protocol {
 		case GRPC:
 			if ctx.Input.Pattern == "" {
 				ctx.Input.Pattern = ctx.Input.Name
@@ -69,26 +70,6 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 		}
 	}
 
-	if *ctx.Outputs.Enabled && ctx.Outputs.OutputObjects != nil {
-		for _, op := range ctx.Outputs.OutputObjects {
-			switch op.ReqMethod {
-			case HTTPPost:
-				err = nil
-			case HTTPPut:
-				err = nil
-			case HTTPGet:
-				err = nil
-			case HTTPDelete:
-				err = nil
-			default:
-				err = errors.New("invalid output method")
-			}
-			if err != nil {
-				return nil, err
-			}
-		}
-	}
-
 	switch ctx.Runtime {
 	case Dapr:
 		err = nil
@@ -104,28 +85,72 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 	return ctx, nil
 }
 
-func (ctx *OpenFunctionContext) SendTo(data interface{}, outputName string) error {
+func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	if !*ctx.Outputs.Enabled {
 		return errors.New("no output")
 	}
 
+	var err error
 	var op *Output
+	var client dapr.Client
+	var method = ""
 	if v, ok := ctx.Outputs.OutputObjects[outputName]; ok {
 		op = v
 	} else {
 		return fmt.Errorf("output %s not found", outputName)
 	}
 
-	body, err := json.Marshal(data)
-	if err != nil {
-		return err
+	if m, ok := op.Params["method"]; ok {
+		method = m
 	}
 
 	if ctx.Runtime == Dapr {
-		pattern := strings.Trim(op.Pattern, "/")
-		_, err = doHttpRequest(op.ReqMethod, pattern, applicationJson, strings.NewReader(string(body)))
+		c, err := dapr.NewClient()
+		if err != nil {
+			panic(err)
+		}
+		client = c
+		switch op.OutType {
+		case DaprTopic:
+			err = client.PublishEvent(context.Background(), outputName, op.Pattern, data)
+		case DaprService:
+			if method != "" {
+				content := &dapr.DataContent{
+					ContentType: "application/json",
+					Data:        data,
+				}
+				_, err = client.InvokeMethodWithContent(context.Background(), outputName, op.Pattern, method, content)
+			} else {
+				err = errors.New("output method is empty or invalid")
+			}
+		case DaprBinding:
+			var metadata map[string]string
+			if md, ok := op.Params["metadata"]; ok {
+				err = json.Unmarshal([]byte(md), &metadata)
+				if err != nil {
+					break
+				}
+			}
+
+			in := &dapr.InvokeBindingRequest{
+				Name:      outputName,
+				Operation: op.Params["operation"],
+				Data:      data,
+				Metadata:  metadata,
+			}
+			err = client.InvokeOutputBinding(context.Background(), in)
+		}
+
+	} else {
+		if method != "" {
+			_, err = doHttpRequest(method, op.Pattern, ApplicationJson, bytes.NewReader(data))
+		} else {
+			err = errors.New("output method is empty or invalid")
+		}
 	}
+
 	if err != nil {
+		client.Close()
 		return err
 	}
 
@@ -143,11 +168,11 @@ func (ctx *OpenFunctionContext) GetInput() (interface{}, error) {
 	return data, nil
 }
 
-func doHttpRequest(method OutputMethod, url string, contentType string, body io.Reader) (resp *http.Response, err error) {
+func doHttpRequest(method string, url string, contentType string, body io.Reader) (resp *http.Response, err error) {
 	ctx, cancel := context.WithTimeout(context.Background(), HTTPTimeoutSecond*time.Second)
 	defer cancel()
 
-	req, err := http.NewRequest(string(method), url, body)
+	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err
 	}

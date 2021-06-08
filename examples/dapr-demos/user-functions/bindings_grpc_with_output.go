@@ -6,16 +6,15 @@ import (
 	"log"
 )
 
-func BindingsGRPCFunction(ctx *ofctx.OpenFunctionContext, in interface{}) int {
+func BindingsGRPCOutput(ctx *ofctx.OpenFunctionContext, in interface{}) int {
 	input := in.(*common.BindingEvent)
 	log.Printf("binding - Data:%s, Meta:%v", input.Data, input.Metadata)
 
-	if *ctx.Outputs.Enabled {
-		err := ctx.SendTo(in, "output_demo")
-		if err != nil {
-			return 500
-		}
+	greeting := []byte("Hello")
+	err := ctx.SendTo(greeting, "echo")
+	if err != nil {
+		log.Printf("Error: %v\n", err)
+		return 500
 	}
-
 	return 200
 }
