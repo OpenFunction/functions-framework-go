@@ -3,7 +3,7 @@ package openfunctioncontext
 const (
 	GRPC        Protocol     = "gRPC"
 	HTTP        Protocol     = "HTTP"
-	Dapr        Runtime      = "Dapr"
+	Dapr        Runtime      = "OpenFuncAsync"
 	Knative     Runtime      = "Knative"
 	DaprBinding ResourceType = "bindings"
 	DaprService ResourceType = "invoke"
