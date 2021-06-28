@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"reflect"
 	"time"
 )
 
@@ -38,7 +39,10 @@ type ContextInterface interface {
 }
 
 func GetOpenFunctionContext() (*OpenFunctionContext, error) {
-	ctx := &OpenFunctionContext{}
+	ctx := &OpenFunctionContext{
+		Input:   Input{},
+		Outputs: make(map[string]*Output),
+	}
 
 	data := os.Getenv("FUNC_CONTEXT")
 	if data == "" {
@@ -50,43 +54,36 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 		return nil, err
 	}
 
-	if *ctx.Input.Enabled {
-		switch ctx.Protocol {
-		case GRPC:
-			if ctx.Input.Pattern == "" {
-				ctx.Input.Pattern = ctx.Input.Name
+	switch ctx.Runtime {
+	case OpenFuncAsync, Knative:
+		break
+	default:
+		return nil, fmt.Errorf("invalid runtime: %s", ctx.Runtime)
+	}
+
+	if !ctx.InputIsEmpty() {
+		if ctx.Runtime == OpenFuncAsync {
+			if _, ok := ctx.Input.Params["type"]; !ok {
+				return nil, errors.New("invalid input: missing type")
 			}
-			err = nil
-		case HTTP:
-			if ctx.Input.Pattern == "" {
-				ctx.Input.Pattern = "/" + ctx.Input.Name
-			}
-			err = nil
-		default:
-			err = errors.New("invalid input kind")
-		}
-		if err != nil {
-			return nil, err
 		}
 	}
 
-	switch ctx.Runtime {
-	case Dapr:
-		err = nil
-	case Knative:
-		err = nil
-	default:
-		err = errors.New("invalid runtime")
-	}
-	if err != nil {
-		return nil, err
+	if !ctx.OutputIsEmpty() {
+		if ctx.Runtime == OpenFuncAsync {
+			for name, out := range ctx.Outputs {
+				if _, ok := out.Params["type"]; !ok {
+					return nil, fmt.Errorf("invalid output %s: missing type", name)
+				}
+			}
+		}
 	}
 
 	return ctx, nil
 }
 
 func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
-	if !*ctx.Outputs.Enabled {
+	if ctx.OutputIsEmpty() {
 		return errors.New("no output")
 	}
 
@@ -94,7 +91,7 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	var op *Output
 	var client dapr.Client
 	var method = ""
-	if v, ok := ctx.Outputs.OutputObjects[outputName]; ok {
+	if v, ok := ctx.Outputs[outputName]; ok {
 		op = v
 	} else {
 		return fmt.Errorf("output %s not found", outputName)
@@ -104,26 +101,27 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 		method = m
 	}
 
-	if ctx.Runtime == Dapr {
+	if ctx.Runtime == OpenFuncAsync {
 		c, err := dapr.NewClient()
 		if err != nil {
 			panic(err)
 		}
 		client = c
-		switch op.OutType {
-		case DaprTopic:
-			err = client.PublishEvent(context.Background(), outputName, op.Pattern, data)
-		case DaprService:
+		outType := op.Params["type"]
+		switch ResourceType(outType) {
+		case OpenFuncTopic:
+			err = client.PublishEvent(context.Background(), outputName, op.Uri, data)
+		case OpenFuncService:
 			if method != "" {
 				content := &dapr.DataContent{
 					ContentType: "application/json",
 					Data:        data,
 				}
-				_, err = client.InvokeMethodWithContent(context.Background(), outputName, op.Pattern, method, content)
+				_, err = client.InvokeMethodWithContent(context.Background(), outputName, op.Uri, method, content)
 			} else {
 				err = errors.New("output method is empty or invalid")
 			}
-		case DaprBinding:
+		case OpenFuncBinding:
 			var metadata map[string]string
 			if md, ok := op.Params["metadata"]; ok {
 				err = json.Unmarshal([]byte(md), &metadata)
@@ -143,13 +141,13 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 
 	} else {
 		if method != "" {
-			_, err = doHttpRequest(method, op.Pattern, ApplicationJson, bytes.NewReader(data))
+			_, err = doHttpRequest(method, op.Uri, ApplicationJson, bytes.NewReader(data))
 		} else {
 			err = errors.New("output method is empty or invalid")
 		}
 	}
 
-	if err != nil {
+	if err != nil && client != nil {
 		client.Close()
 		return err
 	}
@@ -157,15 +155,20 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	return nil
 }
 
-func (ctx *OpenFunctionContext) GetInput() (interface{}, error) {
-	var data interface{}
-	//content, err := ioutil.ReadAll(v)
-	//json.Unmarshal(content, &data)
-	//if err != nil {
-	//	return nil, err
-	//}
+func (ctx *OpenFunctionContext) InputIsEmpty() bool {
+	nilInput := Input{}
+	if reflect.DeepEqual(ctx.Input, nilInput) {
+		return true
+	}
+	return false
+}
 
-	return data, nil
+func (ctx *OpenFunctionContext) OutputIsEmpty() bool {
+	nilOutputs := map[string]*Output{}
+	if reflect.DeepEqual(ctx.Outputs, nilOutputs) {
+		return true
+	}
+	return false
 }
 
 func doHttpRequest(method string, url string, contentType string, body io.Reader) (resp *http.Response, err error) {
