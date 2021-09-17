@@ -1,35 +1,14 @@
 package openfunctioncontext
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
-	dapr "github.com/dapr/go-sdk/client"
-	"io"
-	"net/http"
 	"os"
 	"reflect"
-	"time"
-)
 
-const (
-	ApplicationJson   = "application/json"
-	HTTPTimeoutSecond = 60
-)
-
-var (
-	httpNormalResponse = map[int]string{
-		200: "Request successful",
-		204: "Empty Response",
-	}
-	httpErrorResponse = map[int]string{
-		403: "Invocation forbidden by access control",
-		404: "Not Found",
-		400: "Method name not given",
-		500: "Request failed",
-	}
+	dapr "github.com/dapr/go-sdk/client"
 )
 
 // ContextInterface represents Dapr callback service
@@ -40,13 +19,13 @@ type ContextInterface interface {
 
 func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 	ctx := &OpenFunctionContext{
-		Input:   Input{},
+		Inputs:  make(map[string]*Input),
 		Outputs: make(map[string]*Output),
 	}
 
 	data := os.Getenv("FUNC_CONTEXT")
 	if data == "" {
-		return nil, errors.New("FUNC_CONTEXT not found")
+		return nil, errors.New("env FUNC_CONTEXT not found")
 	}
 
 	err := json.Unmarshal([]byte(data), ctx)
@@ -61,25 +40,81 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 		return nil, fmt.Errorf("invalid runtime: %s", ctx.Runtime)
 	}
 
-	if !ctx.InputIsEmpty() {
-		if ctx.Runtime == OpenFuncAsync {
-			if _, ok := ctx.Input.Params["type"]; !ok {
-				return nil, errors.New("invalid input: missing type")
+	if ctx.Runtime == OpenFuncAsync {
+		if !ctx.InputsIsEmpty() {
+			for name, in := range ctx.Inputs {
+				switch in.Type {
+				case OpenFuncBinding, OpenFuncTopic:
+					break
+				default:
+					return nil, fmt.Errorf("invalid input type %s: %s", name, in.Type)
+				}
 			}
 		}
-	}
 
-	if !ctx.OutputIsEmpty() {
-		if ctx.Runtime == OpenFuncAsync {
+		if !ctx.OutputIsEmpty() {
 			for name, out := range ctx.Outputs {
-				if _, ok := out.Params["type"]; !ok {
-					return nil, fmt.Errorf("invalid output %s: missing type", name)
+				switch out.Type {
+				case OpenFuncBinding, OpenFuncTopic:
+					break
+				default:
+					return nil, fmt.Errorf("invalid output type %s: %s", name, out.Type)
 				}
 			}
 		}
 	}
+	ctx.Event = &EventMetadata{}
 
 	return ctx, nil
+}
+
+func (ctx *OpenFunctionContext) Send(outputName string, data []byte) ([]byte, error) {
+	if ctx.OutputIsEmpty() {
+		return nil, errors.New("no output")
+	}
+
+	var err error
+	var output *Output
+	var client dapr.Client
+	var response *dapr.BindingEvent
+	if v, ok := ctx.Outputs[outputName]; ok {
+		output = v
+	} else {
+		return nil, fmt.Errorf("output %s not found", outputName)
+	}
+
+	if ctx.Runtime == OpenFuncAsync {
+		c, e := dapr.NewClient()
+		if e != nil {
+			panic(e)
+		}
+		client = c
+		switch output.Type {
+		case OpenFuncTopic:
+			err = client.PublishEvent(context.Background(), output.Component, output.Uri, data)
+		case OpenFuncBinding:
+			in := &dapr.InvokeBindingRequest{
+				Name:      output.Component,
+				Operation: output.Operation,
+				Data:      data,
+				Metadata:  output.Metadata,
+			}
+			response, err = client.InvokeBinding(context.Background(), in)
+		}
+
+	} else {
+		err = errors.New("the SendTo need OpenFuncAsync runtime")
+	}
+
+	if err != nil && client != nil {
+		client.Close()
+		return nil, err
+	}
+
+	if response != nil {
+		return response.Data, nil
+	}
+	return nil, nil
 }
 
 func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
@@ -88,63 +123,35 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	}
 
 	var err error
-	var op *Output
+	var output *Output
 	var client dapr.Client
-	var method = ""
 	if v, ok := ctx.Outputs[outputName]; ok {
-		op = v
+		output = v
 	} else {
 		return fmt.Errorf("output %s not found", outputName)
 	}
 
-	if m, ok := op.Params["method"]; ok {
-		method = m
-	}
-
 	if ctx.Runtime == OpenFuncAsync {
-		c, err := dapr.NewClient()
-		if err != nil {
-			panic(err)
+		c, e := dapr.NewClient()
+		if e != nil {
+			panic(e)
 		}
 		client = c
-		outType := op.Params["type"]
-		switch ResourceType(outType) {
+		switch output.Type {
 		case OpenFuncTopic:
-			err = client.PublishEvent(context.Background(), outputName, op.Uri, data)
-		case OpenFuncService:
-			if method != "" {
-				content := &dapr.DataContent{
-					ContentType: "application/json",
-					Data:        data,
-				}
-				_, err = client.InvokeMethodWithContent(context.Background(), outputName, op.Uri, method, content)
-			} else {
-				err = errors.New("output method is empty or invalid")
-			}
+			err = client.PublishEvent(context.Background(), output.Component, output.Uri, data)
 		case OpenFuncBinding:
-			var metadata map[string]string
-			if md, ok := op.Params["metadata"]; ok {
-				err = json.Unmarshal([]byte(md), &metadata)
-				if err != nil {
-					break
-				}
-			}
-
 			in := &dapr.InvokeBindingRequest{
-				Name:      outputName,
-				Operation: op.Params["operation"],
+				Name:      output.Component,
+				Operation: output.Operation,
 				Data:      data,
-				Metadata:  metadata,
+				Metadata:  output.Metadata,
 			}
-			err = client.InvokeOutputBinding(context.Background(), in)
+			_, err = client.InvokeBinding(context.Background(), in)
 		}
 
 	} else {
-		if method != "" {
-			_, err = doHttpRequest(method, op.Uri, ApplicationJson, bytes.NewReader(data))
-		} else {
-			err = errors.New("output method is empty or invalid")
-		}
+		err = errors.New("the SendTo need OpenFuncAsync runtime")
 	}
 
 	if err != nil && client != nil {
@@ -155,9 +162,9 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	return nil
 }
 
-func (ctx *OpenFunctionContext) InputIsEmpty() bool {
-	nilInput := Input{}
-	if reflect.DeepEqual(ctx.Input, nilInput) {
+func (ctx *OpenFunctionContext) InputsIsEmpty() bool {
+	nilInputs := map[string]*Input{}
+	if reflect.DeepEqual(ctx.Inputs, nilInputs) {
 		return true
 	}
 	return false
@@ -171,28 +178,14 @@ func (ctx *OpenFunctionContext) OutputIsEmpty() bool {
 	return false
 }
 
-func doHttpRequest(method string, url string, contentType string, body io.Reader) (resp *http.Response, err error) {
-	ctx, cancel := context.WithTimeout(context.Background(), HTTPTimeoutSecond*time.Second)
-	defer cancel()
-
-	req, err := http.NewRequest(method, url, body)
-	if err != nil {
-		return nil, err
+func (ctx *OpenFunctionContext) ReturnWithSuccess() Return {
+	return Return{
+		Code: Success,
 	}
+}
 
-	req.Header.Set("Content-Type", contentType)
-	rsp, err := http.DefaultClient.Do(req.WithContext(ctx))
-	if err != nil {
-		return nil, err
+func (ctx *OpenFunctionContext) ReturnWithInternalError() Return {
+	return Return{
+		Code: InternalError,
 	}
-
-	if _, ok := httpNormalResponse[rsp.StatusCode]; ok {
-		return rsp, nil
-	}
-
-	if rspText, ok := httpErrorResponse[rsp.StatusCode]; ok {
-		return rsp, errors.New(rspText)
-	}
-
-	return rsp, errors.New("unrecognized response code")
 }
