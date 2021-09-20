@@ -178,14 +178,14 @@ func (ctx *OpenFunctionContext) OutputIsEmpty() bool {
 	return false
 }
 
-func (ctx *OpenFunctionContext) ReturnWithSuccess() Return {
-	return Return{
+func (ctx *OpenFunctionContext) ReturnWithSuccess() RetValue {
+	return RetValue{
 		Code: Success,
 	}
 }
 
-func (ctx *OpenFunctionContext) ReturnWithInternalError() Return {
-	return Return{
+func (ctx *OpenFunctionContext) ReturnWithInternalError() RetValue {
+	return RetValue{
 		Code: InternalError,
 	}
 }

@@ -48,7 +48,7 @@ type Runtime string
 type ReturnCode int
 type ResourceType string
 
-type Return struct {
+type RetValue struct {
 	Code     ReturnCode        `json:"code"`
 	Data     []byte            `json:"data,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`

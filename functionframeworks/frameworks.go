@@ -32,8 +32,8 @@ func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *htt
 	return registerHTTPFunction("/", fn, handler)
 }
 
-func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContext, []byte) ofctx.Return) error {
-	return func(f func(*ofctx.OpenFunctionContext, []byte) ofctx.Return) error {
+func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContext, []byte) ofctx.RetValue) error {
+	return func(f func(*ofctx.OpenFunctionContext, []byte) ofctx.RetValue) error {
 		fctx, err := ofctx.GetOpenFunctionContext()
 		if err != nil {
 			return err
