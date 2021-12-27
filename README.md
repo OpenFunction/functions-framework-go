@@ -1,7 +1,5 @@
 # OpenFunction functions-framework for Go
 
-
-
 **functions-framework-go** is an implementation of functions-framework in Go. It follows the functions-framework criteria for function-to-application conversions.
 
 You can visit the following to learn more about the functions-framework criteria.
