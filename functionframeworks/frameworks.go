@@ -9,8 +9,10 @@ import (
 	"os"
 	"runtime/debug"
 	"strings"
+	"sync"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	daprClient "github.com/dapr/go-sdk/client"
 	dapr "github.com/dapr/go-sdk/service/common"
 	daprd "github.com/dapr/go-sdk/service/grpc"
 
@@ -26,6 +28,7 @@ const (
 var (
 	handler                  = http.DefaultServeMux
 	openFuncAsyncServHandler dapr.Service
+	mu                       sync.RWMutex
 )
 
 func RegisterHTTPFunction(ctx context.Context, fn func(http.ResponseWriter, *http.Request)) error {
@@ -49,6 +52,10 @@ func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContex
 		}
 
 		var funcErr error
+
+		if fctx.DaprClient == nil {
+			fctx.DaprClient = getDaprClient(fctx.ClientPort)
+		}
 
 		// Serving function with inputs
 		if !fctx.InputsIsEmpty() {
@@ -103,6 +110,7 @@ func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContex
 					return fmt.Errorf("invalid input type: %s", input.Type)
 				}
 				if funcErr != nil {
+					destroyDaprClient(fctx.DaprClient)
 					return err
 				}
 			}
@@ -156,15 +164,11 @@ func Start() error {
 	if err != nil {
 		port := os.Getenv("PORT")
 		if port == "" {
-			port = "8080"
+			port = ofctx.DefaultKnaitvePort
 		}
 		err = startKnative(port)
 	} else {
 		if ctx.Runtime == ofctx.OpenFuncAsync {
-			port := "50001"
-			if ctx.Port == "" {
-				ctx.Port = port
-			}
 			err = startOpenFuncAsync(ctx)
 		}
 	}
@@ -202,4 +206,21 @@ func writeHTTPErrorResponse(w http.ResponseWriter, statusCode int, status, msg s
 	w.Header().Set(functionStatusHeader, status)
 	w.WriteHeader(statusCode)
 	fmt.Fprintf(w, msg)
+}
+
+func getDaprClient(port string) daprClient.Client {
+	mu.Lock()
+	defer mu.Unlock()
+	c, e := daprClient.NewClientWithPort(port)
+	if e != nil {
+		panic(e)
+	}
+	return c
+}
+
+func destroyDaprClient(client daprClient.Client) {
+	mu.Lock()
+	defer mu.Unlock()
+	client.Close()
+	client = nil
 }
