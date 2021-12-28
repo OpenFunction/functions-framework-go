@@ -1,26 +1,34 @@
 package openfunctioncontext
 
-import "github.com/dapr/go-sdk/service/common"
+import (
+	daprClient "github.com/dapr/go-sdk/client"
+	"github.com/dapr/go-sdk/service/common"
+)
 
 const (
-	OpenFuncAsync   Runtime      = "OpenFuncAsync"
-	Knative         Runtime      = "Knative"
-	OpenFuncBinding ResourceType = "bindings"
-	OpenFuncTopic   ResourceType = "pubsub"
-	Success         ReturnCode   = 200
-	InternalError   ReturnCode   = 500
+	OpenFuncAsync            Runtime      = "OpenFuncAsync"
+	Knative                  Runtime      = "Knative"
+	OpenFuncBinding          ResourceType = "bindings"
+	OpenFuncTopic            ResourceType = "pubsub"
+	Success                  ReturnCode   = 200
+	InternalError            ReturnCode   = 500
+	DefaultOpenFuncAsyncPort              = "50001"
+	DefaultKnaitvePort                    = "8080"
+	DefaultDaprClientPort                 = "44543"
 )
 
 type OpenFunctionContext struct {
-	Name      string             `json:"name"`
-	Version   string             `json:"version"`
-	RequestID string             `json:"requestID,omitempty"`
-	Inputs    map[string]*Input  `json:"inputs,omitempty"`
-	Outputs   map[string]*Output `json:"outputs,omitempty"`
-	Runtime   Runtime            `json:"runtime"`
-	Port      string             `json:"port,omitempty"`
-	State     interface{}        `json:"state,omitempty"`
-	Event     *EventMetadata     `json:"event,omitempty"`
+	Name       string             `json:"name"`
+	Version    string             `json:"version"`
+	RequestID  string             `json:"requestID,omitempty"`
+	Inputs     map[string]*Input  `json:"inputs,omitempty"`
+	Outputs    map[string]*Output `json:"outputs,omitempty"`
+	Runtime    Runtime            `json:"runtime"`
+	Port       string             `json:"port,omitempty"`
+	ClientPort string             `json:"clientPort,omitempty"`
+	State      interface{}        `json:"state,omitempty"`
+	Event      *EventMetadata     `json:"event,omitempty"`
+	DaprClient daprClient.Client
 }
 
 type EventMetadata struct {

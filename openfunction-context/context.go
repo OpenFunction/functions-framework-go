@@ -11,12 +11,6 @@ import (
 	dapr "github.com/dapr/go-sdk/client"
 )
 
-// ContextInterface represents Dapr callback service
-type ContextInterface interface {
-	SendTo(data []byte, outputName string) error
-	GetInput() (interface{}, error)
-}
-
 func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 	ctx := &OpenFunctionContext{
 		Inputs:  make(map[string]*Input),
@@ -62,6 +56,14 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 				}
 			}
 		}
+
+		if ctx.Port == "" {
+			ctx.Port = DefaultOpenFuncAsyncPort
+		}
+
+		if ctx.ClientPort == "" {
+			ctx.ClientPort = DefaultDaprClientPort
+		}
 	}
 	ctx.Event = &EventMetadata{}
 
@@ -75,7 +77,6 @@ func (ctx *OpenFunctionContext) Send(outputName string, data []byte) ([]byte, er
 
 	var err error
 	var output *Output
-	var client dapr.Client
 	var response *dapr.BindingEvent
 	if v, ok := ctx.Outputs[outputName]; ok {
 		output = v
@@ -84,14 +85,9 @@ func (ctx *OpenFunctionContext) Send(outputName string, data []byte) ([]byte, er
 	}
 
 	if ctx.Runtime == OpenFuncAsync {
-		c, e := dapr.NewClient()
-		if e != nil {
-			panic(e)
-		}
-		client = c
 		switch output.Type {
 		case OpenFuncTopic:
-			err = client.PublishEvent(context.Background(), output.Component, output.Uri, data)
+			err = ctx.DaprClient.PublishEvent(context.Background(), output.Component, output.Uri, data)
 		case OpenFuncBinding:
 			in := &dapr.InvokeBindingRequest{
 				Name:      output.Component,
@@ -99,15 +95,14 @@ func (ctx *OpenFunctionContext) Send(outputName string, data []byte) ([]byte, er
 				Data:      data,
 				Metadata:  output.Metadata,
 			}
-			response, err = client.InvokeBinding(context.Background(), in)
+			response, err = ctx.DaprClient.InvokeBinding(context.Background(), in)
 		}
 
 	} else {
-		err = errors.New("the SendTo need OpenFuncAsync runtime")
+		err = errors.New("the Send() requires the OpenFuncAsync runtime")
 	}
 
-	if err != nil && client != nil {
-		client.Close()
+	if err != nil {
 		return nil, err
 	}
 
@@ -124,7 +119,6 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 
 	var err error
 	var output *Output
-	var client dapr.Client
 	if v, ok := ctx.Outputs[outputName]; ok {
 		output = v
 	} else {
@@ -132,14 +126,9 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 	}
 
 	if ctx.Runtime == OpenFuncAsync {
-		c, e := dapr.NewClient()
-		if e != nil {
-			panic(e)
-		}
-		client = c
 		switch output.Type {
 		case OpenFuncTopic:
-			err = client.PublishEvent(context.Background(), output.Component, output.Uri, data)
+			err = ctx.DaprClient.PublishEvent(context.Background(), output.Component, output.Uri, data)
 		case OpenFuncBinding:
 			in := &dapr.InvokeBindingRequest{
 				Name:      output.Component,
@@ -147,15 +136,14 @@ func (ctx *OpenFunctionContext) SendTo(data []byte, outputName string) error {
 				Data:      data,
 				Metadata:  output.Metadata,
 			}
-			_, err = client.InvokeBinding(context.Background(), in)
+			_, err = ctx.DaprClient.InvokeBinding(context.Background(), in)
 		}
 
 	} else {
-		err = errors.New("the SendTo need OpenFuncAsync runtime")
+		err = errors.New("the SendTo() requires the OpenFuncAsync runtime")
 	}
 
-	if err != nil && client != nil {
-		client.Close()
+	if err != nil {
 		return err
 	}
 
