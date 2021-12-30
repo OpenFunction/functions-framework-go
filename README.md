@@ -31,4 +31,4 @@ You can learn how to use **function-framework-go** and how it works from the [fu
 | ---------------------------------- | ------------ | ------- | -------------------------------------------- |
 | v0.0.0-20210628081257-4137e46a99a6 | v0.3.*       | v0.1.0  | v0.2.2 (openfunction/builder-go:v0.2.2-1.15) |
 | v0.0.0-20210922063920-81a7b2951b8a | v0.4.*       | v0.2.0  | v0.3.0 (openfunction/builder-go:v0.3.0-1.15) |
-| v0.1.0                             | v0.5.*       | v0.2.0  | v0.4.0 (openfunction/builder-go:v0.4.0-1.15) |
+| v0.1.1                             | v0.5.*       | v0.2.0  | v0.4.0 (openfunction/builder-go:v0.4.0-1.15) |
