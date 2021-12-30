@@ -58,12 +58,9 @@ func GetOpenFunctionContext() (*OpenFunctionContext, error) {
 		}
 
 		if ctx.Port == "" {
-			ctx.Port = DefaultOpenFuncAsyncPort
+			ctx.Port = DefaultPort
 		}
 
-		if ctx.ClientPort == "" {
-			ctx.ClientPort = DefaultDaprClientPort
-		}
 	}
 	ctx.Event = &EventMetadata{}
 
