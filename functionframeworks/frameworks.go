@@ -54,7 +54,7 @@ func RegisterOpenFunction(ctx context.Context, fn func(*ofctx.OpenFunctionContex
 		var funcErr error
 
 		if fctx.DaprClient == nil {
-			fctx.DaprClient = getDaprClient(fctx.ClientPort)
+			fctx.DaprClient = getDaprClient()
 		}
 
 		// Serving function with inputs
@@ -164,7 +164,7 @@ func Start() error {
 	if err != nil {
 		port := os.Getenv("PORT")
 		if port == "" {
-			port = ofctx.DefaultKnaitvePort
+			port = ofctx.DefaultPort
 		}
 		err = startKnative(port)
 	} else {
@@ -208,10 +208,10 @@ func writeHTTPErrorResponse(w http.ResponseWriter, statusCode int, status, msg s
 	fmt.Fprintf(w, msg)
 }
 
-func getDaprClient(port string) daprClient.Client {
+func getDaprClient() daprClient.Client {
 	mu.Lock()
 	defer mu.Unlock()
-	c, e := daprClient.NewClientWithPort(port)
+	c, e := daprClient.NewClientWithPort(ofctx.DefaultDaprGRPCClientPort)
 	if e != nil {
 		panic(e)
 	}

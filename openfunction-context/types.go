@@ -6,15 +6,14 @@ import (
 )
 
 const (
-	OpenFuncAsync            Runtime      = "OpenFuncAsync"
-	Knative                  Runtime      = "Knative"
-	OpenFuncBinding          ResourceType = "bindings"
-	OpenFuncTopic            ResourceType = "pubsub"
-	Success                  ReturnCode   = 200
-	InternalError            ReturnCode   = 500
-	DefaultOpenFuncAsyncPort              = "50001"
-	DefaultKnaitvePort                    = "8080"
-	DefaultDaprClientPort                 = "44543"
+	OpenFuncAsync             Runtime      = "OpenFuncAsync"
+	Knative                   Runtime      = "Knative"
+	OpenFuncBinding           ResourceType = "bindings"
+	OpenFuncTopic             ResourceType = "pubsub"
+	Success                   ReturnCode   = 200
+	InternalError             ReturnCode   = 500
+	DefaultPort                            = "8080"
+	DefaultDaprGRPCClientPort              = "50001"
 )
 
 type OpenFunctionContext struct {
@@ -25,7 +24,6 @@ type OpenFunctionContext struct {
 	Outputs    map[string]*Output `json:"outputs,omitempty"`
 	Runtime    Runtime            `json:"runtime"`
 	Port       string             `json:"port,omitempty"`
-	ClientPort string             `json:"clientPort,omitempty"`
 	State      interface{}        `json:"state,omitempty"`
 	Event      *EventMetadata     `json:"event,omitempty"`
 	DaprClient daprClient.Client
