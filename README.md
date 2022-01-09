@@ -1,17 +1,17 @@
-# OpenFunction functions-framework for Go
+# OpenFunction Functions Framework for Go
 
 **functions-framework-go** is an implementation of functions-framework in Go. It follows the functions-framework criteria for function-to-application conversions.
 
-You can visit the following to learn more about the functions-framework criteria.
+To learn more about the functions-framework criteria, refer to the following links:
 
 - [functions-framework proposal](https://github.com/OpenFunction/OpenFunction/blob/main/docs/proposals/202105_add_function_framework.md#function-context)
-- [functions-framework repo](https://github.com/OpenFunction/functions-framework)
+- [functions-framework repository](https://github.com/OpenFunction/functions-framework)
 
 ## Usage
 
-**functions-framework-go** requires a Go 1.15+ environment. You can import this pkg by configuring the following in the `go.mod` file:
+**functions-framework-go** requires a Go 1.15+ environment. To import this pkg, configure the following code in the `go.mod` file:
 
-> You can find the correct *version* in the compatibility section below.
+> Get the correct *version* in [Compatibility](#compatibility).
 
 ```go
 require (
@@ -21,7 +21,7 @@ require (
 
 ## Samples
 
-You can learn how to use **function-framework-go** and how it works from the [functions-framework samples](https://github.com/OpenFunction/samples#functions-framework-samples) in the OpenFunction Samples repository.
+To learn how to use **function-framework-go** and how it works, refer to the [functions-framework samples](https://github.com/OpenFunction/samples#functions-framework-samples) in the OpenFunction Samples repository.
 
 ## Compatibility
 
