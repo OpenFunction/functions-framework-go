@@ -93,7 +93,8 @@ func (r *Runtime) RegisterHTTPFunction(
 ) error {
 	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
 		defer RecoverPanicHTTP(w, "Function panic")
-
+		ctx.SyncRequestMeta.ResponseWriter = w
+		ctx.SyncRequestMeta.Request = r
 		if err := processPreHooksFunc(); err != nil {
 			// Just logging errors
 		}
