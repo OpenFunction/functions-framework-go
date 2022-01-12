@@ -55,17 +55,17 @@ func NewFramework() (*functionsFrameworkImpl, error) {
 
 func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{}) error {
 	if fnHTTP, ok := fn.(func(http.ResponseWriter, *http.Request) error); ok {
-		if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.processPreHooks, fwk.processPostHooks, fnHTTP); err != nil {
+		if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnHTTP); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
 	} else if fnOpenFunction, ok := fn.(func(ofctx.Context, []byte) (ofctx.Out, error)); ok {
-		if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.processPreHooks, fwk.processPostHooks, fnOpenFunction); err != nil {
+		if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnOpenFunction); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
 	} else if fnCloudEvent, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
-		if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.processPreHooks, fwk.processPostHooks, fnCloudEvent); err != nil {
+		if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnCloudEvent); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
@@ -73,28 +73,6 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 		err := errors.New("unrecognized function")
 		klog.Errorf("failed to register function: %v", err)
 		return err
-	}
-	return nil
-}
-
-func (fwk *functionsFrameworkImpl) processPreHooks() error {
-	plugins := fwk.pluginMap
-	for _, plg := range fwk.prePlugins {
-		klog.Infof("exec pre hooks: %s of version %s", plg.Name(), plg.Version())
-		if err := plg.ExecPreHook(fwk.funcContext, plugins); err != nil {
-			klog.Warningf("failed to exec pre hooks %s: %s", plg.Name(), err.Error())
-		}
-	}
-	return nil
-}
-
-func (fwk *functionsFrameworkImpl) processPostHooks() error {
-	plugins := fwk.pluginMap
-	for _, plg := range fwk.postPlugins {
-		klog.Infof("exec post hooks: %s of version %s", plg.Name(), plg.Version())
-		if err := plg.ExecPostHook(fwk.funcContext, plugins); err != nil {
-			klog.Warningf("failed to exec post hooks %s: %s", plg.Name(), err.Error())
-		}
 	}
 	return nil
 }

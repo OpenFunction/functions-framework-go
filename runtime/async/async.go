@@ -14,6 +14,8 @@ import (
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/plugin"
+	"github.com/OpenFunction/functions-framework-go/runtime"
 )
 
 type Runtime struct {
@@ -41,8 +43,8 @@ func (r *Runtime) Start(ctx context.Context) error {
 
 func (r *Runtime) RegisterHTTPFunction(
 	ctx ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(http.ResponseWriter, *http.Request) error,
 ) error {
 	return errors.New("async runtime cannot register http function")
@@ -51,8 +53,8 @@ func (r *Runtime) RegisterHTTPFunction(
 func (r *Runtime) RegisterCloudEventFunction(
 	ctx context.Context,
 	funcContext ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(context.Context, cloudevents.Event) error,
 ) error {
 	return errors.New("async runtime cannot register cloudevent function")
@@ -60,8 +62,8 @@ func (r *Runtime) RegisterCloudEventFunction(
 
 func (r *Runtime) RegisterOpenFunction(
 	ctx ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(ofctx.Context, []byte) (ofctx.Out, error),
 ) error {
 	// Register the asynchronous functions (based on the Dapr runtime)
@@ -78,24 +80,21 @@ func (r *Runtime) RegisterOpenFunction(
 				case ofctx.OpenFuncBinding:
 					input.Uri = input.Component
 					funcErr = r.handler.AddBindingInvocationHandler(input.Uri, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
-						ctx.EventMeta.InputName = name
-						ctx.EventMeta.BindingEvent = in
+						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+						rm.FuncContext.EventMeta.InputName = name
+						rm.FuncContext.EventMeta.BindingEvent = in
 
-						if err := processPreHooksFunc(); err != nil {
-							// Just logging errors
-						}
+						rm.ProcessPreHooks()
 
-						ctx.Out, ctx.Error = f(ctx, in.Data)
+						rm.FuncContext.Out, rm.FuncContext.Error = f(rm.FuncContext, in.Data)
 
-						if err := processPostHooksFunc(); err != nil {
-							// Just logging errors
-						}
+						rm.ProcessPostHooks()
 
-						switch ctx.Out.Code {
+						switch rm.FuncContext.Out.Code {
 						case ofctx.Success:
-							return ctx.Out.Data, nil
+							return rm.FuncContext.Out.Data, nil
 						case ofctx.InternalError:
-							return nil, ctx.Out.Error
+							return nil, rm.FuncContext.Out.Error
 						default:
 							return nil, nil
 						}
@@ -106,25 +105,22 @@ func (r *Runtime) RegisterOpenFunction(
 						Topic:      input.Uri,
 					}
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
-						ctx.EventMeta.InputName = name
-						ctx.EventMeta.TopicEvent = e
+						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+						rm.FuncContext.EventMeta.InputName = name
+						rm.FuncContext.EventMeta.TopicEvent = e
 
-						if err := processPreHooksFunc(); err != nil {
-							// Just logging errors
-						}
+						rm.ProcessPreHooks()
 
-						ctx.Out, ctx.Error = f(ctx, convertTopicEventToByte(e.Data))
+						rm.FuncContext.Out, rm.FuncContext.Error = f(rm.FuncContext, convertTopicEventToByte(e.Data))
 
-						if err := processPostHooksFunc(); err != nil {
-							// Just logging errors
-						}
+						rm.ProcessPostHooks()
 
-						switch ctx.Out.Code {
+						switch rm.FuncContext.Out.Code {
 						case ofctx.Success:
 							return false, nil
 						case ofctx.InternalError:
-							err = ctx.Out.Error
-							if retry, ok := ctx.Out.Metadata["retry"]; ok {
+							err = rm.FuncContext.Out.Error
+							if retry, ok := rm.FuncContext.Out.Metadata["retry"]; ok {
 								if strings.EqualFold(retry, "true") {
 									return true, err
 								} else if strings.EqualFold(retry, "false") {
@@ -152,20 +148,18 @@ func (r *Runtime) RegisterOpenFunction(
 			}
 			// Serving function without inputs
 		} else {
-			if err := processPreHooksFunc(); err != nil {
-				// Just logging errors
-			}
+			rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+			rm.ProcessPreHooks()
 
-			ctx.Out, ctx.Error = f(ctx, nil)
+			rm.FuncContext.Out, rm.FuncContext.Error = f(rm.FuncContext, nil)
 
-			if err := processPostHooksFunc(); err != nil {
-				// Just logging errors
-			}
-			switch ctx.Out.Code {
+			rm.ProcessPostHooks()
+
+			switch rm.FuncContext.Out.Code {
 			case ofctx.Success:
 				return nil
 			case ofctx.InternalError:
-				return ctx.Out.Error
+				return rm.FuncContext.Out.Error
 			default:
 				return nil
 			}
