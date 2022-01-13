@@ -104,14 +104,18 @@ func (fwk *functionsFrameworkImpl) RegisterPlugins(customPlugins map[string]plug
 		}
 	}
 
+	klog.Infoln("Plugins for pre-hook stage:")
 	for _, plgName := range fwk.funcContext.PrePlugins {
 		if plg, ok := fwk.pluginMap[plgName]; ok {
+			klog.Infof("- %s", plg.Name())
 			fwk.prePlugins = append(fwk.prePlugins, plg)
 		}
 	}
 
+	klog.Infoln("Plugins for post-hook stage:")
 	for _, plgName := range fwk.funcContext.PostPlugins {
 		if plg, ok := fwk.pluginMap[plgName]; ok {
+			klog.Infof("- %s", plg.Name())
 			fwk.postPlugins = append(fwk.postPlugins, plg)
 		}
 	}
