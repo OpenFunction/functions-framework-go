@@ -14,14 +14,13 @@ const (
 	Knative             Runtime      = "Knative"
 	OpenFuncBinding     ResourceType = "bindings"
 	OpenFuncTopic       ResourceType = "pubsub"
-	Success             ReturnCode   = 200
-	InternalError       ReturnCode   = 500
+	Success                          = 200
+	InternalError                    = 500
 	defaultPort                      = "8080"
 	daprSidecarGRPCPort              = "50001"
 )
 
 type Runtime string
-type ReturnCode int
 type ResourceType string
 
 type Context struct {
@@ -52,8 +51,8 @@ type EventMetadata struct {
 }
 
 type SyncRequestMetadata struct {
-	ResponseWriter http.ResponseWriter `json:"responseWriter,omitempty"`
-	Request        *http.Request       `json:"request,omitempty"`
+	ResponseWriter *http.ResponseWriter `json:"responseWriter,omitempty"`
+	Request        *http.Request        `json:"request,omitempty"`
 }
 
 type Input struct {
@@ -72,7 +71,7 @@ type Output struct {
 }
 
 type Out struct {
-	Code     ReturnCode        `json:"code"`
+	Code     int               `json:"code"`
 	Data     []byte            `json:"data,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 	Error    error             `json:"error,omitempty"`

@@ -54,34 +54,35 @@ func (r *Runtime) RegisterOpenFunction(
 	postPlugins []plugin.Plugin,
 	fn func(ofctx.Context, []byte) (ofctx.Out, error),
 ) error {
+	// Initialize dapr client if it is nil
+	ofctx.InitDaprClientIfNil(&ctx)
+
 	// Register the synchronous function (based on Knaitve runtime)
-	return func(f func(ofctx.Context, []byte) (ofctx.Out, error)) error {
-		r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
-			rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-			rm.FuncContext.SyncRequestMeta.ResponseWriter = w
-			rm.FuncContext.SyncRequestMeta.Request = r
-			defer RecoverPanicHTTP(w, "Function panic")
+	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
+		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+		rm.FuncContext.SyncRequestMeta.ResponseWriter = &w
+		rm.FuncContext.SyncRequestMeta.Request = r
+		defer RecoverPanicHTTP(w, "Function panic")
 
-			rm.ProcessPreHooks()
+		rm.ProcessPreHooks()
 
-			rm.FuncContext.Out, rm.FuncContext.Error = f(rm.FuncContext, convertRequestBodyToByte(r))
+		rm.FuncContext.Out, rm.FuncContext.Error = fn(rm.FuncContext, convertRequestBodyToByte(r))
 
-			rm.ProcessPostHooks()
+		rm.ProcessPostHooks()
 
-			switch rm.FuncContext.Out.Code {
-			case ofctx.Success:
-				w.Header().Set(functionStatusHeader, successStatus)
-				return
-			case ofctx.InternalError:
-				w.Header().Set(functionStatusHeader, errorStatus)
-				w.WriteHeader(int(rm.FuncContext.Out.Code))
-				return
-			default:
-				return
-			}
-		})
-		return nil
-	}(fn)
+		switch rm.FuncContext.Out.Code {
+		case ofctx.Success:
+			w.Header().Set(functionStatusHeader, successStatus)
+			return
+		case ofctx.InternalError:
+			w.Header().Set(functionStatusHeader, errorStatus)
+			w.WriteHeader(int(rm.FuncContext.Out.Code))
+			return
+		default:
+			return
+		}
+	})
+	return nil
 }
 
 func (r *Runtime) RegisterHTTPFunction(
@@ -92,7 +93,7 @@ func (r *Runtime) RegisterHTTPFunction(
 ) error {
 	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-		rm.FuncContext.SyncRequestMeta.ResponseWriter = w
+		rm.FuncContext.SyncRequestMeta.ResponseWriter = &w
 		rm.FuncContext.SyncRequestMeta.Request = r
 		defer RecoverPanicHTTP(w, "Function panic")
 
