@@ -37,6 +37,10 @@ func (p *PluginExample) Version() string {
 	return Version
 }
 
+func (p *PluginExample) Init() plugin.Plugin {
+	return New()
+}
+
 func (p *PluginExample) ExecPreHook(ctx ofctx.Context, plugins map[string]plugin.Plugin) error {
 	r := preHookLogic(ctx.Ctx)
 	p.stateA = 1

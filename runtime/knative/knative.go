@@ -13,6 +13,8 @@ import (
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/plugin"
+	"github.com/OpenFunction/functions-framework-go/runtime"
 )
 
 const (
@@ -48,62 +50,59 @@ func (r *Runtime) Start(ctx context.Context) error {
 
 func (r *Runtime) RegisterOpenFunction(
 	ctx ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(ofctx.Context, []byte) (ofctx.Out, error),
 ) error {
+	// Initialize dapr client if it is nil
+	ofctx.InitDaprClientIfNil(&ctx)
+
 	// Register the synchronous function (based on Knaitve runtime)
-	return func(f func(ofctx.Context, []byte) (ofctx.Out, error)) error {
-		r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
-			ctx.SyncRequestMeta.ResponseWriter = w
-			ctx.SyncRequestMeta.Request = r
-			defer RecoverPanicHTTP(w, "Function panic")
+	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
+		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+		rm.FuncContext.SyncRequestMeta.ResponseWriter = &w
+		rm.FuncContext.SyncRequestMeta.Request = r
+		defer RecoverPanicHTTP(w, "Function panic")
 
-			if err := processPreHooksFunc(); err != nil {
-				// Just logging errors
-			}
+		rm.ProcessPreHooks()
 
-			ctx.Out, ctx.Error = f(ctx, convertRequestBodyToByte(r))
+		rm.FuncContext.Out, rm.FuncContext.Error = fn(rm.FuncContext, convertRequestBodyToByte(r))
 
-			if err := processPostHooksFunc; err != nil {
-				// Just logging errors
-			}
+		rm.ProcessPostHooks()
 
-			switch ctx.Out.Code {
-			case ofctx.Success:
-				w.Header().Set(functionStatusHeader, successStatus)
-				return
-			case ofctx.InternalError:
-				w.Header().Set(functionStatusHeader, errorStatus)
-				w.WriteHeader(int(ctx.Out.Code))
-				return
-			default:
-				return
-			}
-		})
-		return nil
-	}(fn)
+		switch rm.FuncContext.Out.Code {
+		case ofctx.Success:
+			w.Header().Set(functionStatusHeader, successStatus)
+			return
+		case ofctx.InternalError:
+			w.Header().Set(functionStatusHeader, errorStatus)
+			w.WriteHeader(int(rm.FuncContext.Out.Code))
+			return
+		default:
+			return
+		}
+	})
+	return nil
 }
 
 func (r *Runtime) RegisterHTTPFunction(
 	ctx ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(http.ResponseWriter, *http.Request) error,
 ) error {
 	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
+		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
+		rm.FuncContext.SyncRequestMeta.ResponseWriter = &w
+		rm.FuncContext.SyncRequestMeta.Request = r
 		defer RecoverPanicHTTP(w, "Function panic")
-		ctx.SyncRequestMeta.ResponseWriter = w
-		ctx.SyncRequestMeta.Request = r
-		if err := processPreHooksFunc(); err != nil {
-			// Just logging errors
-		}
 
-		ctx.Error = fn(w, r)
+		rm.ProcessPreHooks()
 
-		if err := processPostHooksFunc(); err != nil {
-			// Just logging errors
-		}
+		rm.FuncContext.Error = fn(w, r)
+
+		rm.ProcessPostHooks()
+
 	})
 	return nil
 }
@@ -111,8 +110,8 @@ func (r *Runtime) RegisterHTTPFunction(
 func (r *Runtime) RegisterCloudEventFunction(
 	ctx context.Context,
 	funcContext ofctx.Context,
-	processPreHooksFunc func() error,
-	processPostHooksFunc func() error,
+	prePlugins []plugin.Plugin,
+	postPlugins []plugin.Plugin,
 	fn func(context.Context, cloudevents.Event) error,
 ) error {
 	p, err := cloudevents.NewHTTP()
@@ -122,15 +121,14 @@ func (r *Runtime) RegisterCloudEventFunction(
 	}
 
 	handleFn, err := cloudevents.NewHTTPReceiveHandler(ctx, p, func(ctx context.Context, ce cloudevents.Event) error {
-		if err := processPreHooksFunc(); err != nil {
-			// Just logging errors
-		}
+		rm := runtime.NewRuntimeManager(funcContext, prePlugins, postPlugins)
+		rm.FuncContext.EventMeta.CloudEvent = &ce
 
-		funcContext.Error = fn(ctx, ce)
+		rm.ProcessPreHooks()
 
-		if err := processPostHooksFunc(); err != nil {
-			// Just logging errors
-		}
+		rm.FuncContext.Error = fn(ctx, ce)
+
+		rm.ProcessPostHooks()
 
 		return funcContext.Error
 	})
