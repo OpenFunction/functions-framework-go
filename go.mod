@@ -16,3 +16,5 @@ require (
 	k8s.io/klog/v2 v2.30.0
 	skywalking.apache.org/repo/goapi v0.0.0-20220105035505-48cad5270f49
 )
+
+replace skywalking.apache.org/repo/goapi v0.0.0-20220105035505-48cad5270f49 => skywalking.apache.org/repo/goapi v0.0.0-20220113125141-45f8b684b527

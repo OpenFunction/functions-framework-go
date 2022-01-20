@@ -265,7 +265,7 @@ honnef.co/go/tools v0.0.0-20190523083050-ea95bdfd59fc/go.mod h1:rf3lG4BRIbNafJWh
 k8s.io/klog/v2 v2.30.0 h1:bUO6drIvCIsvZ/XFgfxoGFQU/a4Qkh0iAlvUR7vlHJw=
 k8s.io/klog/v2 v2.30.0/go.mod h1:y1WjHnz7Dj687irZUWR/WLkLc5N1YHtjLdmgWjndZn0=
 skywalking.apache.org/repo/goapi v0.0.0-20210401062122-a049ca15c62d/go.mod h1:S9co6uRVlbQU7PnN7RpEqRtLRCF5n0E9TB7RSmqC5kw=
-skywalking.apache.org/repo/goapi v0.0.0-20220105035505-48cad5270f49 h1:qg8EPR0uBCuxQ0ZLhFYhX8OjtzHKyD17ZMTHRifYcY4=
-skywalking.apache.org/repo/goapi v0.0.0-20220105035505-48cad5270f49/go.mod h1:4KrWd+Oi4lkB+PtxZgIlf+3T6EECPru4fOWNMEHjxRk=
+skywalking.apache.org/repo/goapi v0.0.0-20220113125141-45f8b684b527 h1:ipctf/EarKiq5fjvo8dRlJQxHuPgvuiPqqCIE1QtHaI=
+skywalking.apache.org/repo/goapi v0.0.0-20220113125141-45f8b684b527/go.mod h1:4KrWd+Oi4lkB+PtxZgIlf+3T6EECPru4fOWNMEHjxRk=
 sourcegraph.com/sourcegraph/appdash v0.0.0-20180110180208-2cc67fd64755/go.mod h1:hI742Nqp5OhwiqlzhgfbWU4mW4yO10fP+LoT9WOswdU=
 sourcegraph.com/sourcegraph/appdash-data v0.0.0-20151005221446-73f23eafcf67/go.mod h1:L5q+DGLGOQFpo1snNEkLOJT2d1YTW66rWNzatr3He1k=
