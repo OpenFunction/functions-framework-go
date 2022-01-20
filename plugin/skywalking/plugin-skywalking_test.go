@@ -46,11 +46,6 @@ func TestHTTP(t *testing.T) {
 		t.Error(err)
 	}
 
-	err = fwk.Register(ctx, HelloWorldWithOpenFunction)
-	if err != nil {
-		t.Error(err)
-	}
-
 	err = fwk.Start(ctx)
 	if err != nil {
 		t.Error(err)
