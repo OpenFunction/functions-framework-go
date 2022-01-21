@@ -37,6 +37,7 @@ type Context struct {
 	SyncRequestMeta *SyncRequestMetadata `json:"syncRequest,omitempty"`
 	PrePlugins      []string             `json:"prePlugins,omitempty"`
 	PostPlugins     []string             `json:"postPlugins,omitempty"`
+	TracingConfig   *TracingConfig       `json:"tracingConfig,omitempty"`
 	Out             Out                  `json:"out,omitempty"`
 	Error           error                `json:"error,omitempty"`
 	HttpPattern     string               `json:"httpPattern,omitempty"`
@@ -75,4 +76,14 @@ type Out struct {
 	Data     []byte            `json:"data,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 	Error    error             `json:"error,omitempty"`
+}
+
+type TracingConfig struct {
+	Enable   bool `json:"enable"`
+	Provider struct {
+		Name      string `json:"name"`
+		OapServer string `json:"oapServer"`
+	} `json:"provider"`
+	Tags    []map[string]string `json:"tags"`
+	Baggage map[string]string   `json:"baggage"`
 }
