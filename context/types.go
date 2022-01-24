@@ -86,13 +86,13 @@ type Out struct {
 }
 
 type PluginsTracing struct {
-	Enable   bool              `json:"enable"`
-	Provider *TracingProvider  `json:"provider"`
-	Tags     map[string]string `json:"tags,omitempty"`
-	Baggage  map[string]string `json:"baggage"`
+	Enable   bool              `json:"enable" yaml:"enable"`
+	Provider *TracingProvider  `json:"provider" yaml:"provider"`
+	Tags     map[string]string `json:"tags,omitempty" yaml:"tags,omitempty"`
+	Baggage  map[string]string `json:"baggage" yaml:"baggage"`
 }
 
 type TracingProvider struct {
-	Name      string `json:"name"`
-	OapServer string `json:"oapServer"`
+	Name      string `json:"name" yaml:"name"`
+	OapServer string `json:"oapServer" yaml:"oapServer"`
 }
