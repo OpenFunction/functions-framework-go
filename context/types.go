@@ -10,14 +10,19 @@ import (
 )
 
 const (
-	Async               Runtime      = "Async"
-	Knative             Runtime      = "Knative"
-	OpenFuncBinding     ResourceType = "bindings"
-	OpenFuncTopic       ResourceType = "pubsub"
-	Success                          = 200
-	InternalError                    = 500
-	defaultPort                      = "8080"
-	daprSidecarGRPCPort              = "50001"
+	functionContextEnvName                    = "FUNC_CONTEXT"
+	PodNameEnvName                            = "POD_NAME"
+	PodNamespaceEnvName                       = "POD_NAMESPACE"
+	Async                        Runtime      = "Async"
+	Knative                      Runtime      = "Knative"
+	OpenFuncBinding              ResourceType = "bindings"
+	OpenFuncTopic                ResourceType = "pubsub"
+	Success                                   = 200
+	InternalError                             = 500
+	defaultPort                               = "8080"
+	daprSidecarGRPCPort                       = "50001"
+	TracingProviderSkywalking                 = "skywalking"
+	TracingProviderOpentelemetry              = "opentelemetry"
 )
 
 type Runtime string
@@ -37,9 +42,12 @@ type Context struct {
 	SyncRequestMeta *SyncRequestMetadata `json:"syncRequest,omitempty"`
 	PrePlugins      []string             `json:"prePlugins,omitempty"`
 	PostPlugins     []string             `json:"postPlugins,omitempty"`
+	PluginsTracing  *PluginsTracing      `json:"pluginsTracing,omitempty"`
 	Out             Out                  `json:"out,omitempty"`
 	Error           error                `json:"error,omitempty"`
 	HttpPattern     string               `json:"httpPattern,omitempty"`
+	podName         string
+	podNamespace    string
 	daprClient      dapr.Client
 }
 
@@ -75,4 +83,16 @@ type Out struct {
 	Data     []byte            `json:"data,omitempty"`
 	Metadata map[string]string `json:"metadata,omitempty"`
 	Error    error             `json:"error,omitempty"`
+}
+
+type PluginsTracing struct {
+	Enable   bool              `json:"enable"`
+	Provider *TracingProvider  `json:"provider"`
+	Tags     map[string]string `json:"tags,omitempty"`
+	Baggage  map[string]string `json:"baggage"`
+}
+
+type TracingProvider struct {
+	Name      string `json:"name"`
+	OapServer string `json:"oapServer"`
 }
