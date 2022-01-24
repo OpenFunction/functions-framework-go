@@ -24,9 +24,9 @@ func GetOpenFunctionContext() (*Context, error) {
 		Outputs: make(map[string]*Output),
 	}
 
-	data := os.Getenv("FUNC_CONTEXT")
+	data := os.Getenv(functionContextEnvName)
 	if data == "" {
-		return nil, errors.New("env FUNC_CONTEXT not found")
+		return nil, fmt.Errorf("env %s not found", functionContextEnvName)
 	}
 
 	err := json.Unmarshal([]byte(data), ctx)
@@ -63,6 +63,41 @@ func GetOpenFunctionContext() (*Context, error) {
 			default:
 				return nil, fmt.Errorf("invalid output type %s: %s", name, out.Type)
 			}
+		}
+	}
+
+	podName := os.Getenv(PodNameEnvName)
+	if podName == "" {
+		return nil, errors.New("the name of the pod cannot be retrieved from the environment, " +
+			"you need to set the POD_NAME environment variable")
+	}
+	ctx.podName = podName
+
+	podNamespace := os.Getenv(PodNamespaceEnvName)
+	if podNamespace == "" {
+		return nil, errors.New("the namespace of the pod cannot be retrieved from the environment, " +
+			"you need to set the POD_NAMESPACE environment variable")
+	}
+	ctx.podNamespace = podNamespace
+
+	if ctx.PluginsTracing != nil && ctx.PluginsTracing.Enable {
+		if ctx.PluginsTracing.Provider != nil && ctx.PluginsTracing.Provider.Name != "" {
+			switch ctx.PluginsTracing.Provider.Name {
+			case TracingProviderSkywalking, TracingProviderOpentelemetry:
+				ctx.PrePlugins = registerTracingPluginIntoPrePlugins(ctx.PrePlugins, ctx.PluginsTracing.Provider.Name)
+				ctx.PostPlugins = registerTracingPluginIntoPostPlugins(ctx.PostPlugins, ctx.PluginsTracing.Provider.Name)
+			default:
+				return nil, fmt.Errorf("invalid tracing provider name: %s", ctx.PluginsTracing.Provider.Name)
+			}
+			if ctx.PluginsTracing.Tags != nil {
+				if funcName, ok := ctx.PluginsTracing.Tags["func"]; !ok || funcName != ctx.Name {
+					ctx.PluginsTracing.Tags["func"] = ctx.Name
+				}
+				ctx.PluginsTracing.Tags["instance"] = ctx.podName
+				ctx.PluginsTracing.Tags["namespace"] = ctx.podNamespace
+			}
+		} else {
+			return nil, errors.New("the tracing plugin is enabled, but its configuration is incorrect")
 		}
 	}
 
@@ -177,4 +212,39 @@ func DestroyDaprClient(ctx *Context) {
 		ctx.daprClient.Close()
 		ctx.daprClient = nil
 	}
+}
+
+func registerTracingPluginIntoPrePlugins(plugins []string, target string) []string {
+	if plugins == nil {
+		plugins = []string{}
+	}
+	if exist := hasPlugin(plugins, target); !exist {
+		plugins = append(plugins, target)
+	}
+	return plugins
+}
+
+func registerTracingPluginIntoPostPlugins(plugins []string, target string) []string {
+	if exist := hasPlugin(plugins, target); !exist {
+		plugins = append(plugins[:1], plugins[:]...)
+		plugins[0] = target
+	}
+	return plugins
+}
+
+func hasPlugin(plugins []string, target string) bool {
+	for _, plg := range plugins {
+		if plg == target {
+			return true
+		}
+	}
+	return false
+}
+
+func GetPodName(ctx Context) string {
+	return ctx.podName
+}
+
+func GetPodNamespace(ctx Context) string {
+	return ctx.podNamespace
 }
