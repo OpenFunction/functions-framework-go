@@ -1,6 +1,7 @@
 package skywalking
 
 import (
+	"fmt"
 	"time"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -20,7 +21,7 @@ func preSyncRequestLogic(ofCtx *ofctx.Context, tracer *go2sky.Tracer) error {
 
 	span.SetComponent(5004)
 	span.Tag(go2sky.TagHTTPMethod, request.Method)
-	span.Tag(go2sky.TagURL, request.URL.String())
+	span.Tag(go2sky.TagURL, fmt.Sprintf("%s%s", request.Host, request.URL.Path))
 	setPublicAttrs(nCtx, ofCtx, span)
 	return nil
 }
