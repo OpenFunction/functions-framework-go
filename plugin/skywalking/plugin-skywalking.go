@@ -81,6 +81,7 @@ func (p PluginSkywalking) Name() string {
 
 func (p PluginSkywalking) Version() string {
 	return version
+
 }
 
 func (p *PluginSkywalking) ExecPreHook(ctx ofctx.Context, plugins map[string]plugin.Plugin) error {

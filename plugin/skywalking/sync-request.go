@@ -33,6 +33,7 @@ func postSyncRequestLogic(ctx *ofctx.Context) error {
 		return nil
 	}
 	defer span.End()
+
 	if ofctx.InternalError == ctx.Out.Code {
 		span.Error(time.Now(), "Error on handling request")
 	}
