@@ -1,0 +1,26 @@
+setup:
+  env: compose
+  file: docker-compose.yml
+  timeout: 20m
+
+cleanup:
+  # always never success failure
+  on: success
+
+trigger:
+  action: http
+  interval: 3s
+  times: 5
+  url: http://${of_host}:${of_12345}
+  method: GET
+
+verify:
+  # verify with retry strategy
+  retry:
+    # max retry count
+    count: 10
+    # the interval between two retries, in millisecond.
+    interval: 10s
+  cases:
+    - query: curl http://${mockoap_host}:${mockoap_12800}/receiveData
+      expected: expected.data.yml
