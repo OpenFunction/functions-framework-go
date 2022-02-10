@@ -16,6 +16,8 @@ import (
 const (
 	name    = "skywalking"
 	version = "v1"
+
+	componentIDOpenFunction = 5013 // https://github.com/apache/skywalking/blob/master/oap-server/server-starter/src/main/resources/component-libraries.yml#L515
 )
 
 var (
@@ -113,6 +115,7 @@ func (p PluginSkywalking) Get(fieldName string) (interface{}, bool) {
 
 func setPublicAttrs(ctx context.Context, ofCtx *ofctx.Context, span go2sky.Span) {
 	span.SetSpanLayer(agentv3.SpanLayer_FAAS)
+	span.SetComponent(componentIDOpenFunction)
 
 	// tags
 	for key, value := range ofCtx.PluginsTracing.Tags {
