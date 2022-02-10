@@ -99,7 +99,7 @@ func (r *Runtime) RegisterHTTPFunction(
 
 		rm.ProcessPreHooks()
 
-		rm.FuncContext.Error = fn(w, r)
+		rm.FuncContext.Error = fn(*rm.FuncContext.SyncRequestMeta.ResponseWriter, rm.FuncContext.SyncRequestMeta.Request)
 
 		rm.ProcessPostHooks()
 
