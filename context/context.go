@@ -215,17 +215,18 @@ func DestroyDaprClient(ctx *Context) {
 }
 
 func registerTracingPluginIntoPrePlugins(plugins []string, target string) []string {
-	if plugins == nil {
-		plugins = []string{}
-	}
-	if exist := hasPlugin(plugins, target); !exist {
+	if len(plugins) == 0 {
+		plugins = append(plugins, target)
+	} else if exist := hasPlugin(plugins, target); !exist {
 		plugins = append(plugins, target)
 	}
 	return plugins
 }
 
 func registerTracingPluginIntoPostPlugins(plugins []string, target string) []string {
-	if exist := hasPlugin(plugins, target); !exist {
+	if len(plugins) == 0 {
+		plugins = append(plugins, target)
+	} else if exist := hasPlugin(plugins, target); !exist {
 		plugins = append(plugins[:1], plugins[:]...)
 		plugins[0] = target
 	}

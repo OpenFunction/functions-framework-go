@@ -1,0 +1,10 @@
+FROM golang:1.16
+
+ADD . /functions-framework-go
+WORKDIR /functions-framework-go
+
+EXPOSE 12345
+
+ENTRYPOINT ["go"]
+
+CMD ["run", "plugin/skywalking/test/sync-request/of/of.go"]

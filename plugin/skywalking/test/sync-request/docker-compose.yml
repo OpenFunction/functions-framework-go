@@ -1,0 +1,92 @@
+version: '2.1'
+
+services:
+  mockoap:
+    image: ghcr.io/apache/skywalking-agent-test-tool/mock-collector:3792b52c5b27462630bfd556bdc4cc7b5c41b321
+    expose:
+      - 19876
+      - 12800
+    ports:
+      - 19876
+      - 12800
+    networks:
+      - e2e
+    restart: on-failure
+    healthcheck:
+      test: [ "CMD", "curl", "http://127.0.0.1:12800/healthCheck" ]
+      interval: 5s
+      timeout: 60s
+      retries: 120
+  provider:
+    build:
+      context: ../../../../
+      dockerfile: ./plugin/skywalking/test/sync-request/docker/Dockerfile.provider
+    environment:
+      SW_AGENT_COLLECTOR_GET_AGENT_DYNAMIC_CONFIG_INTERVAL: -1
+      SW_AGENT_COLLECTOR_BACKEND_SERVICES: mockoap:19876
+    networks:
+      - e2e
+    expose:
+      - 8080
+    ports:
+      - 8080
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 60s
+      retries: 120
+    depends_on:
+      mockoap:
+        condition: service_healthy
+  of:
+    build:
+      context: ../../../../
+      dockerfile: ./plugin/skywalking/test/sync-request/docker/Dockerfile.of
+    environment:
+      SW_AGENT_COLLECTOR_GET_AGENT_DYNAMIC_CONFIG_INTERVAL: -1
+      FUNC_CONTEXT: |
+        {
+          "name": "function-test",
+          "version": "v1.0.0",
+          "runtime": "Knative",
+          "port": "12345",
+          "prePlugins": [],
+          "postPlugins": [],
+          "pluginsTracing": {
+            "enable": true,
+            "provider": {
+              "name": "skywalking",
+              "oapServer": "mockoap:19876"
+            },
+            "tags": {
+              "func": "function-test",
+              "layer": "faas",
+              "tag1": "value1",
+              "tag2": "value2"
+            },
+            "baggage": {
+              "CONSUMER_KEY": "of"
+            }
+          }
+        }
+      POD_NAME: function-test-vhct4
+      POD_NAMESPACE: test
+      PROVIDER_ADDRESS: http://provider:8080
+    expose:
+      - 12345
+    ports:
+      - 12345
+    networks:
+      - e2e
+    healthcheck:
+      test: ["CMD", "bash", "-c", "cat < /dev/null > /dev/tcp/127.0.0.1/8080"]
+      interval: 5s
+      timeout: 60s
+      retries: 120
+    depends_on:
+      mockoap:
+        condition: service_healthy
+      provider:
+        condition: service_healthy
+networks:
+  e2e:
