@@ -41,14 +41,14 @@ func (p *PluginExample) Init() plugin.Plugin {
 	return New()
 }
 
-func (p *PluginExample) ExecPreHook(ctx ofctx.Context, plugins map[string]plugin.Plugin) error {
-	r := preHookLogic(ctx.Ctx)
+func (p *PluginExample) ExecPreHook(ctx ofctx.RuntimeContext, plugins map[string]plugin.Plugin) error {
+	r := preHookLogic(ctx.GetNativeContext())
 	p.stateA = 1
 	p.stateB = r
 	return nil
 }
 
-func (p *PluginExample) ExecPostHook(ctx ofctx.Context, plugins map[string]plugin.Plugin) error {
+func (p *PluginExample) ExecPostHook(ctx ofctx.RuntimeContext, plugins map[string]plugin.Plugin) error {
 	// Get data from another plugin via Plugin.Get()
 	plgName := "plugin-custom"
 	keyName := "StateC"
