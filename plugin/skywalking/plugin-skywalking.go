@@ -96,8 +96,9 @@ func (p *PluginSkywalking) ExecPreHook(ctx ofctx.RuntimeContext, plugins map[str
 	}
 
 	if ctx.GetSyncRequest().Request != nil {
-		// SyncRequest
 		return preSyncRequestLogic(ctx, p.tracer)
+	} else if ctx.GetBindingEvent() != nil {
+		return preBindingEventLogic(ctx, p.tracer)
 	}
 	return nil
 }
@@ -106,8 +107,11 @@ func (p *PluginSkywalking) ExecPostHook(ctx ofctx.RuntimeContext, plugins map[st
 	if p.tracer == nil {
 		return nil
 	}
+
 	if ctx.GetSyncRequest().Request != nil {
 		return postSyncRequestLogic(ctx)
+	} else if ctx.GetBindingEvent() != nil {
+		return postBindingEventLogic(ctx)
 	}
 	return nil
 }

@@ -57,6 +57,9 @@ type RuntimeContext interface {
 	// GetNativeContext returns the Go native context object.
 	GetNativeContext() context.Context
 
+	// SetNativeContext set the Go native context object.
+	SetNativeContext(ctx context.Context)
+
 	// GetOut returns the pointer of raw OpenFunction FunctionOut object.
 	GetOut() Out
 
@@ -427,6 +430,10 @@ func (ctx *FunctionContext) GetMode() string {
 
 func (ctx *FunctionContext) GetNativeContext() context.Context {
 	return ctx.Ctx
+}
+
+func (ctx *FunctionContext) SetNativeContext(nCtx context.Context) {
+	ctx.Ctx = nCtx
 }
 
 func (ctx *FunctionContext) SetSyncRequest(w http.ResponseWriter, r *http.Request) {
