@@ -8,6 +8,7 @@ import (
 	"github.com/SkyAPM/go2sky"
 	dapr "github.com/dapr/go-sdk/client"
 	"k8s.io/klog/v2"
+	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
 
 	"github.com/OpenFunction/functions-framework-go/framework"
 	"github.com/OpenFunction/functions-framework-go/plugin"
@@ -30,13 +31,14 @@ func initDaprClient() {
 }
 
 func HelloWorldWithHttp(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		return
+	}
+
 	initDaprClient()
-
 	tracer := go2sky.GetGlobalTracer()
-
 	metadata := make(map[string]string)
-
-	span, err := tracer.CreateExitSpan(r.Context(), "", "", func(headerKey, headerValue string) error {
+	span, err := tracer.CreateExitSpan(r.Context(), "sample-topic", "of:8081", func(headerKey, headerValue string) error {
 		metadata[headerKey] = headerValue
 		return nil
 	})
@@ -46,11 +48,16 @@ func HelloWorldWithHttp(w http.ResponseWriter, r *http.Request) {
 		klog.Error(err)
 		return
 	}
+	span.SetSpanLayer(agentv3.SpanLayer_MQ)
 	defer span.End()
 
+	klog.Info(metadata)
+
 	in := &dapr.InvokeBindingRequest{
-		Name:     "",
-		Metadata: metadata,
+		Name:      "sample-topic",
+		Operation: "create",
+		Data:      []byte("Hello"),
+		Metadata:  metadata,
 	}
 	out, err := client.InvokeBinding(r.Context(), in)
 	if err != nil {

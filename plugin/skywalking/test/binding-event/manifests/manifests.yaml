@@ -8,7 +8,7 @@ spec:
   metadata:
     # Kafka broker connection setting
     - name: brokers
-      value: [kafka broker address]
+      value: dapr-kafka.kafka.svc:9092
     # consumer configuration: topic and consumer group
     - name: topics
       value: sample
@@ -20,3 +20,146 @@ spec:
     - name: authRequired
       value: "false"
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: of
+  labels:
+    app: of
+spec:
+  selector:
+    matchLabels:
+      app: of
+  template:
+    metadata:
+      labels:
+        app: of
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "of"
+        dapr.io/app-port: "8080"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: of
+          image: skywalking_e2e_of:latest
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GOPROXY
+              value: https://goproxy.cn
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "of",
+                  "version": "v1.0.0",
+                  "runtime": "Async",
+                  "port": "8080",
+                  "prePlugins": [],
+                  "postPlugins": [],
+                  "inputs": {
+                    "of": {
+                      "type": "bindings",
+                      "component": "sample-topic"
+                    }
+                  },
+                  "pluginsTracing": {
+                    "enable": true,
+                    "provider": {
+                      "name": "skywalking",
+                      "oapServer": "skywalking-oap.skywalking.svc:11800"
+                    },
+                    "tags": {
+                      "func": "function-test",
+                      "layer": "faas",
+                      "tag1": "value1",
+                      "tag2": "value2"
+                    },
+                    "baggage": {
+                      "CONSUMER_KEY": "of"
+                    }
+                  }
+                }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provider
+  labels:
+    app: provider
+spec:
+  selector:
+    matchLabels:
+      app: provider
+  template:
+    metadata:
+      labels:
+        app: provider
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "provider"
+    spec:
+      containers:
+        - name: provider
+          image: skywalking_e2e_provider:latest
+          ports:
+            - containerPort: 8081
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: GOPROXY
+              value: https://goproxy.cn
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "provider",
+                  "version": "v1.0.0",
+                  "runtime": "Knative",
+                  "port": "8081",
+                  "prePlugins": [],
+                  "postPlugins": [],
+                  "pluginsTracing": {
+                    "enable": true,
+                    "provider": {
+                      "name": "skywalking",
+                      "oapServer": "skywalking-oap.skywalking.svc:11800"
+                    },
+                    "tags": {
+                      "func": "function-test",
+                      "layer": "faas",
+                      "tag1": "value1",
+                      "tag2": "value2"
+                    },
+                    "baggage": {
+                      "CONSUMER_KEY": "of"
+                    }
+                  }
+                }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: provider
+spec:
+  selector:
+    app: provider
+  ports:
+    - port: 8081
+      targetPort: 8081
+  type: NodePort

@@ -7,4 +7,4 @@ EXPOSE 12345
 
 ENTRYPOINT ["go"]
 
-CMD ["run", "plugin/skywalking/test/sync-request/of/of.go"]
+CMD ["run", "plugin/skywalking/test/binding-event/of/of.go"]
