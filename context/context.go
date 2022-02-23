@@ -9,6 +9,7 @@ import (
 	"os"
 	"reflect"
 	"strconv"
+	"strings"
 	"sync"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -19,7 +20,18 @@ import (
 )
 
 var (
-	clientGRPCPort string
+	clientGRPCPort         string
+	bindingQueueComponents = map[string]bool{
+		"bindings.kafka":                  true,
+		"bindings.rabbitmq":               true,
+		"bindings.aws.sqs":                true,
+		"bindings.aws.kinesis":            true,
+		"bindings.gcp.pubsub":             true,
+		"bindings.azure.eventgrid":        true,
+		"bindings.azure.eventhubs":        true,
+		"bindings.azure.servicebusqueues": true,
+		"bindings.azure.storagequeues":    true,
+	}
 )
 
 const (
@@ -41,6 +53,7 @@ const (
 	KubernetesMode                            = "kubernetes"
 	SelfHostMode                              = "self-host"
 	TestModeOn                                = "on"
+	innerEventTypePrefix                      = "io.openfunction.function"
 )
 
 type Runtime string
@@ -50,6 +63,9 @@ type RuntimeContext interface {
 
 	// GetName returns the function's name.
 	GetName() string
+
+	// GetMode returns the operating environment mode of the function.
+	GetMode() string
 
 	// GetContext returns the pointer of raw OpenFunction FunctionContext object.
 	GetContext() *FunctionContext
@@ -100,12 +116,6 @@ type RuntimeContext interface {
 	// SetEvent sets the name of the input source and the native event when an event request is received.
 	SetEvent(inputName string, event interface{})
 
-	// SetEventMetadata sets the metadata of the EventRequest.
-	SetEventMetadata(key string, value string)
-
-	// GetEventMetadata returns the metadata of the EventRequest.
-	GetEventMetadata() map[string]string
-
 	// GetInputs returns the mapping relationship of *Input.
 	GetInputs() map[string]*Input
 
@@ -123,6 +133,9 @@ type RuntimeContext interface {
 
 	// GetCloudEvent returns the pointer of v2.Event.
 	GetCloudEvent() *cloudevents.Event
+
+	// GetInnerEvent returns the InnerEvent.
+	GetInnerEvent() InnerEvent
 
 	// WithOut adds the FunctionOut object to the RuntimeContext.
 	WithOut(out *FunctionOut) RuntimeContext
@@ -162,6 +175,9 @@ type Context interface {
 
 	// GetCloudEvent returns the pointer of v2.Event.
 	GetCloudEvent() *cloudevents.Event
+
+	// GetInnerEvent returns the InnerEvent.
+	GetInnerEvent() InnerEvent
 }
 
 type Out interface {
@@ -233,7 +249,7 @@ type EventRequest struct {
 	BindingEvent *common.BindingEvent `json:"bindingEvent,omitempty"`
 	TopicEvent   *common.TopicEvent   `json:"topicEvent,omitempty"`
 	CloudEvent   *cloudevents.Event   `json:"cloudEventnt,omitempty"`
-	Metadata     map[string]string    `json:"metadata,omitempty"`
+	innerEvent   InnerEvent
 }
 
 type SyncRequest struct {
@@ -242,18 +258,20 @@ type SyncRequest struct {
 }
 
 type Input struct {
-	Uri       string            `json:"uri,omitempty"`
-	Component string            `json:"component,omitempty"`
-	Type      ResourceType      `json:"type"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
+	Uri           string            `json:"uri,omitempty"`
+	Component     string            `json:"component"`
+	ComponentType string            `json:"componentType"`
+	Type          ResourceType      `json:"type"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
 type Output struct {
-	Uri       string            `json:"uri,omitempty"`
-	Component string            `json:"component,omitempty"`
-	Type      ResourceType      `json:"type"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
-	Operation string            `json:"operation,omitempty"`
+	Uri           string            `json:"uri,omitempty"`
+	Component     string            `json:"component"`
+	ComponentType string            `json:"componentType"`
+	Type          ResourceType      `json:"type"`
+	Metadata      map[string]string `json:"metadata,omitempty"`
+	Operation     string            `json:"operation,omitempty"`
 }
 
 type FunctionOut struct {
@@ -313,6 +331,8 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 	var err error
 	var output *Output
 	var response *dapr.BindingEvent
+	var payload interface{}
+	var payloadBytes []byte
 
 	if v, ok := ctx.Outputs[outputName]; ok {
 		output = v
@@ -320,14 +340,25 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 		return nil, fmt.Errorf("output %s not found", outputName)
 	}
 
+	payload = data
+	payloadBytes = data
+
+	if traceable(output.ComponentType) {
+		ie := NewInnerEvent(ctx)
+		ie.MergeMetadata(ctx.GetInnerEvent())
+		ie.SetUserData(data)
+		payload = ie.GetCloudEvent()
+		payloadBytes = ie.GetCloudEventJSON()
+	}
+
 	switch output.Type {
 	case OpenFuncTopic:
-		err = ctx.daprClient.PublishEvent(context.Background(), output.Component, output.Uri, data)
+		err = ctx.daprClient.PublishEvent(context.Background(), output.Component, output.Uri, payload)
 	case OpenFuncBinding:
 		in := &dapr.InvokeBindingRequest{
 			Name:      output.Component,
 			Operation: output.Operation,
-			Data:      data,
+			Data:      payloadBytes,
 			Metadata:  output.Metadata,
 		}
 		response, err = ctx.daprClient.InvokeBinding(context.Background(), in)
@@ -444,32 +475,32 @@ func (ctx *FunctionContext) SetSyncRequest(w http.ResponseWriter, r *http.Reques
 }
 
 func (ctx *FunctionContext) SetEvent(inputName string, event interface{}) {
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
 	switch t := event.(type) {
 	case *common.BindingEvent:
-		ctx.Event.BindingEvent = event.(*common.BindingEvent)
+		be := event.(*common.BindingEvent)
+		ie := convertEvent(ctx, inputName, be.Data)
+		ctx.setEvent(inputName, be, nil, nil, ie)
 	case *common.TopicEvent:
-		ctx.Event.TopicEvent = event.(*common.TopicEvent)
+		te := event.(*common.TopicEvent)
+		ie := convertEvent(ctx, inputName, te.Data)
+		ctx.setEvent(inputName, nil, te, nil, ie)
 	case *cloudevents.Event:
-		ctx.Event.CloudEvent = event.(*cloudevents.Event)
+		ce := event.(*cloudevents.Event)
+		ie := convertEvent(ctx, inputName, ce.Data())
+		ctx.setEvent(inputName, nil, nil, ce, ie)
 	default:
 		klog.Errorf("failed to resolve event type: %v", t)
 	}
-	ctx.Event.InputName = inputName
 }
 
-func (ctx *FunctionContext) SetEventMetadata(key string, value string) {
+func (ctx *FunctionContext) setEvent(name string, be *common.BindingEvent, te *common.TopicEvent, ce *cloudevents.Event, ie InnerEvent) {
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
-	if ctx.Event.Metadata == nil {
-		ctx.Event.Metadata = map[string]string{}
-	}
-	ctx.Event.Metadata[key] = value
-}
-
-func (ctx *FunctionContext) GetEventMetadata() map[string]string {
-	return ctx.Event.Metadata
+	ctx.Event.InputName = name
+	ctx.Event.BindingEvent = be
+	ctx.Event.TopicEvent = te
+	ctx.Event.CloudEvent = ce
+	ctx.Event.innerEvent = ie
 }
 
 func (ctx *FunctionContext) GetName() string {
@@ -510,6 +541,10 @@ func (ctx *FunctionContext) GetTopicEvent() *common.TopicEvent {
 
 func (ctx *FunctionContext) GetCloudEvent() *cloudevents.Event {
 	return ctx.Event.CloudEvent
+}
+
+func (ctx *FunctionContext) GetInnerEvent() InnerEvent {
+	return ctx.Event.innerEvent
 }
 
 func (ctx *FunctionContext) GetPluginsTracingCfg() TracingConfig {
@@ -742,4 +777,17 @@ func parseContext() (*FunctionContext, error) {
 
 func NewFunctionOut() *FunctionOut {
 	return &FunctionOut{}
+}
+
+// Convert queue binding event into cloud event format to add tracing metadata in the cloud event context.
+func traceable(t string) bool {
+
+	// All events sent to dapr pubsub components need to be encapsulated
+	if strings.HasPrefix(t, "pubsub") {
+		return true
+	}
+
+	// For dapr binding components, let the mapping conditions of the bindingQueueComponents
+	// determine if the tracing metadata can be added.
+	return bindingQueueComponents[t]
 }
