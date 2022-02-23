@@ -112,24 +112,35 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 	rm.ProcessPreHooks()
 
 	if function, ok := fn.(func(http.ResponseWriter, *http.Request)); ok {
-		srMeta := rm.FuncContext.GetSyncRequest()
-		rww := ofctx.NewResponseWriterWrapper(srMeta.ResponseWriter, 200)
-		function(rww, srMeta.Request)
+
+		// get the sync request
+		sr := rm.FuncContext.GetSyncRequest()
+
+		// wrap the response writer
+		rww := ofctx.NewResponseWriterWrapper(sr.ResponseWriter, 200)
+
+		function(rww, sr.Request)
 		rm.FuncContext.WithOut(rm.FuncOut.WithCode(rww.Status()))
+
 	} else if function, ok := fn.(func(ofctx.Context, []byte) (ofctx.Out, error)); ok {
-		if rm.FuncContext.GetBindingEvent() != nil {
-			out, err := function(functionContext, rm.FuncContext.GetBindingEvent().Data)
+		if rm.FuncContext.GetBindingEvent() != nil || rm.FuncContext.GetTopicEvent() != nil {
+
+			// get the user data from inner event
+			userData := rm.FuncContext.GetInnerEvent().GetUserData()
+
+			// pass user data to user function
+			out, err := function(functionContext, convertUserDataToBytes(userData))
+
 			rm.FuncContext.WithOut(out.GetOut())
 			rm.FuncContext.WithError(err)
-		} else if rm.FuncContext.GetTopicEvent() != nil {
-			out, err := function(functionContext, convertTopicEventToByte(rm.FuncContext.GetTopicEvent().Data))
-			rm.FuncContext.WithOut(out.GetOut())
-			rm.FuncContext.WithError(err)
+
 		} else if rm.FuncContext.GetSyncRequest().Request != nil {
+
 			body, _ := ioutil.ReadAll(rm.FuncContext.GetSyncRequest().Request.Body)
 			out, err := function(functionContext, body)
 			rm.FuncContext.WithOut(out.GetOut())
 			rm.FuncContext.WithError(err)
+
 		}
 	} else if function, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
 		ce := cloudevents.Event{}
@@ -142,7 +153,7 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 	rm.ProcessPostHooks()
 }
 
-func convertTopicEventToByte(data interface{}) []byte {
+func convertUserDataToBytes(data interface{}) []byte {
 	if d, ok := data.([]byte); ok {
 		return d
 	}
