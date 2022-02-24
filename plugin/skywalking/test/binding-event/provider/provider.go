@@ -5,14 +5,12 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/SkyAPM/go2sky"
-	dapr "github.com/dapr/go-sdk/client"
-	"k8s.io/klog/v2"
-	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
-
+	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/OpenFunction/functions-framework-go/framework"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	"github.com/OpenFunction/functions-framework-go/plugin/skywalking"
+	dapr "github.com/dapr/go-sdk/client"
+	"k8s.io/klog/v2"
 )
 
 var (
@@ -30,42 +28,32 @@ func initDaprClient() {
 	})
 }
 
+func Handler(ofCtx ofctx.Context, in []byte) (out ofctx.Out, err error) {
+
+	ofCtx.Send("sample-topic", []byte("hello"))
+
+	return nil, err
+}
+
 func HelloWorldWithHttp(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		return
 	}
-
+	klog.Infof("received :%s", r.URL.Path)
 	initDaprClient()
-	tracer := go2sky.GetGlobalTracer()
-	metadata := make(map[string]string)
-	span, err := tracer.CreateExitSpan(r.Context(), "sample-topic", "of:8081", func(headerKey, headerValue string) error {
-		metadata[headerKey] = headerValue
-		return nil
-	})
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		klog.Error(err)
-		return
-	}
-	span.SetSpanLayer(agentv3.SpanLayer_MQ)
-	defer span.End()
-
-	klog.Info(metadata)
 
 	in := &dapr.InvokeBindingRequest{
 		Name:      "sample-topic",
 		Operation: "create",
-		Data:      []byte("Hello"),
-		Metadata:  metadata,
+		Data:      []byte(r.URL.Path),
 	}
-	out, err := client.InvokeBinding(r.Context(), in)
+	_, err := client.InvokeBinding(r.Context(), in)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		klog.Error(err)
 		return
 	}
-	w.Write(out.Data)
+	w.Write([]byte("successful"))
 }
 
 func main() {

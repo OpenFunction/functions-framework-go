@@ -39,6 +39,7 @@ spec:
         dapr.io/app-id: "of"
         dapr.io/app-port: "8080"
         dapr.io/app-protocol: "grpc"
+        dapr.io/config: "zipkin"
     spec:
       containers:
         - name: of
@@ -107,6 +108,8 @@ spec:
       annotations:
         dapr.io/enabled: "true"
         dapr.io/app-id: "provider"
+        dapr.io/config: "zipkin"
+        dapr.io/app-port: "8081"
     spec:
       containers:
         - name: provider
@@ -135,7 +138,7 @@ spec:
                   "prePlugins": [],
                   "postPlugins": [],
                   "pluginsTracing": {
-                    "enable": true,
+                    "enable": false,
                     "provider": {
                       "name": "skywalking",
                       "oapServer": "skywalking-oap.skywalking.svc:11800"
