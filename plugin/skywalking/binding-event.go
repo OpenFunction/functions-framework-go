@@ -5,7 +5,6 @@ import (
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/SkyAPM/go2sky"
-	"k8s.io/klog/v2"
 )
 
 func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) error {
@@ -13,7 +12,6 @@ func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) err
 
 	span, nCtx, err := tracer.CreateEntrySpan(ofCtx.GetNativeContext(), ofCtx.GetName(), func(headerKey string) (string, error) {
 		value, _ := event.GetMetadata()[headerKey]
-		klog.Infof("key: %s value: %s", headerKey, value)
 		return value, nil
 	})
 	if err != nil {

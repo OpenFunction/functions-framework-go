@@ -79,8 +79,8 @@ spec:
                   "postPlugins": [],
                   "inputs": {
                     "of": {
-                      "type": "bindings",
-                      "component": "sample-topic"
+                      "componentType": "bindings.kafka",
+                      "componentName": "sample-topic"
                     }
                   },
                   "pluginsTracing": {
@@ -173,7 +173,7 @@ spec:
                       "tag2": "value2"
                     },
                     "baggage": {
-                      "CONSUMER_KEY": "of"
+                      "CONSUMER_KEY": "provider"
                     }
                   }
                 }
