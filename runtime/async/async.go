@@ -90,9 +90,9 @@ func (r *Runtime) RegisterOpenFunction(
 		// Serving function with inputs
 		if ctx.HasInputs() {
 			for name, input := range ctx.GetInputs() {
-				switch input.Type {
+				switch input.GetType() {
 				case ofctx.OpenFuncBinding:
-					input.Uri = input.Component
+					input.Uri = input.ComponentName
 					funcErr = r.handler.AddBindingInvocationHandler(input.Uri, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 						rm.FuncContext.SetEvent(name, in)
@@ -109,7 +109,7 @@ func (r *Runtime) RegisterOpenFunction(
 					})
 				case ofctx.OpenFuncTopic:
 					sub := &dapr.Subscription{
-						PubsubName: input.Component,
+						PubsubName: input.ComponentName,
 						Topic:      input.Uri,
 					}
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
@@ -137,7 +137,7 @@ func (r *Runtime) RegisterOpenFunction(
 						}
 					})
 				default:
-					return fmt.Errorf("invalid input type: %s", input.Type)
+					return fmt.Errorf("invalid input type: %s", input.GetType())
 				}
 				if funcErr != nil {
 					// When the function throws an exception,
