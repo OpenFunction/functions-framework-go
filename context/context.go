@@ -178,6 +178,9 @@ type Context interface {
 
 	// GetInnerEvent returns the InnerEvent.
 	GetInnerEvent() InnerEvent
+
+	// GetNativeContext returns the Go native context object.
+	GetNativeContext() context.Context
 }
 
 type Out interface {

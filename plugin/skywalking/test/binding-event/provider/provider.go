@@ -2,58 +2,36 @@ package main
 
 import (
 	"context"
-	"net/http"
-	"sync"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/OpenFunction/functions-framework-go/framework"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	"github.com/OpenFunction/functions-framework-go/plugin/skywalking"
-	dapr "github.com/dapr/go-sdk/client"
+	"github.com/SkyAPM/go2sky"
 	"k8s.io/klog/v2"
 )
 
-var (
-	client             dapr.Client
-	initDaprClientOnce sync.Once
-)
-
-func initDaprClient() {
-	initDaprClientOnce.Do(func() {
-		var err error
-		client, err = dapr.NewClient()
-		if err != nil {
-			panic(err)
-		}
-	})
-}
-
 func Handler(ofCtx ofctx.Context, in []byte) (out ofctx.Out, err error) {
-
-	ofCtx.Send("sample-topic", []byte("hello"))
-
-	return nil, err
-}
-
-func HelloWorldWithHttp(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		return
+	tracer := go2sky.GetGlobalTracer()
+	if tracer == nil {
+		return out.WithData([]byte("go2sky is not enabled")), nil
 	}
-	klog.Infof("received :%s", r.URL.Path)
-	initDaprClient()
 
-	in := &dapr.InvokeBindingRequest{
-		Name:      "sample-topic",
-		Operation: "create",
-		Data:      []byte(r.URL.Path),
-	}
-	_, err := client.InvokeBinding(r.Context(), in)
+	span, err := tracer.CreateExitSpan(ofCtx.GetNativeContext(), "sample-topic", "sample-topic", func(headerKey, headerValue string) error {
+		ofCtx.GetInnerEvent().SetMetadata(headerValue, headerValue)
+		return nil
+	})
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		klog.Error(err)
-		return
+		return out.WithData([]byte(err.Error())), nil
 	}
-	w.Write([]byte("successful"))
+	defer span.End()
+
+	resp, err := ofCtx.Send("sample-topic", in)
+	if err != nil {
+		return out.WithData([]byte(err.Error())), nil
+	}
+
+	return out.WithData(resp), err
 }
 
 func main() {
@@ -66,7 +44,7 @@ func main() {
 		"skywalking": &skywalking.PluginSkywalking{},
 	})
 
-	err = fwk.Register(ctx, HelloWorldWithHttp)
+	err = fwk.Register(ctx, Handler)
 	if err != nil {
 		klog.Fatal(err)
 	}
