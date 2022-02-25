@@ -17,39 +17,36 @@ var funcCtx = `{
   "inputs": {
     "cron": {
       "uri": "cron_input",
-      "type": "bindings",
-      "component": "cron_input"
+      "componentName": "cron_input",
+      "componentType": "bindings.cron"
     },
     "eventbus": {
       "uri": "default",
-      "type": "pubsub",
-      "component": "nats_eventbus"
+      "componentName": "nats_eventbus",
+      "componentType": "pubsub.natsstreaming"
     }
   },
   "outputs": {
     "echo": {
       "uri": "echo",
       "operation": "create",
-      "component": "echo",
+      "componentName": "echo",
       "componentType": "bindings.kafka",
       "metadata": {
         "path": "echo",
         "Content-Type": "application/json; charset=utf-8"
-      },
-      "type": "bindings"
+      }
     },
     "target": {
       "uri": "sample",
       "operation": "create",
-      "component": "kafka-server",
-      "componentType": "pubsub.kafka",
-      "type": "pubsub"
+      "componentName": "kafka-server",
+      "componentType": "pubsub.kafka"
     },
     "target2": {
       "uri": "cron_output",
-      "component": "cron_output",
-      "componentType": "bindings.cron",
-      "type": "bindings"
+      "componentName": "cron_output",
+      "componentType": "bindings.cron"
     }
   }
 }`

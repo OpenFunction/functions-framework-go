@@ -176,8 +176,8 @@ func TestAsyncBindingsFunction(t *testing.T) {
   "inputs": {
     "cron": {
       "uri": "test",
-      "type": "bindings",
-      "component": "test"
+      "componentName": "test",
+      "componentType": "bindings.Kafka"
     }
   }
 }`
@@ -259,8 +259,8 @@ func TestAsyncPubsubTopic(t *testing.T) {
   "inputs": {
     "sub": {
       "uri": "my_topic",
-      "type": "pubsub",
-      "component": "msg"
+      "componentName": "msg",
+      "componentType": "pubsub.kafka"
     }
   }
 }`

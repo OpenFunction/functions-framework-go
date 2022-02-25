@@ -256,19 +256,31 @@ type SyncRequest struct {
 
 type Input struct {
 	Uri           string            `json:"uri,omitempty"`
-	Component     string            `json:"component"`
+	ComponentName string            `json:"componentName"`
 	ComponentType string            `json:"componentType"`
-	Type          ResourceType      `json:"type"`
 	Metadata      map[string]string `json:"metadata,omitempty"`
+}
+
+// GetType will be called after the context has been parsed correctly,
+// therefore we do not have to handle the error return of getBuildingBlockType()
+func (i *Input) GetType() ResourceType {
+	bbt, _ := getBuildingBlockType(i.ComponentType)
+	return bbt
 }
 
 type Output struct {
 	Uri           string            `json:"uri,omitempty"`
-	Component     string            `json:"component"`
+	ComponentName string            `json:"componentName"`
 	ComponentType string            `json:"componentType"`
-	Type          ResourceType      `json:"type"`
 	Metadata      map[string]string `json:"metadata,omitempty"`
 	Operation     string            `json:"operation,omitempty"`
+}
+
+// GetType will be called after the context has been parsed correctly,
+// therefore we do not have to handle the error return of getBuildingBlockType()
+func (o *Output) GetType() ResourceType {
+	bbt, _ := getBuildingBlockType(o.ComponentType)
+	return bbt
 }
 
 type FunctionOut struct {
@@ -348,12 +360,12 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 		payloadBytes = ie.GetCloudEventJSON()
 	}
 
-	switch output.Type {
+	switch output.GetType() {
 	case OpenFuncTopic:
-		err = ctx.daprClient.PublishEvent(context.Background(), output.Component, output.Uri, payload)
+		err = ctx.daprClient.PublishEvent(context.Background(), output.ComponentName, output.Uri, payload)
 	case OpenFuncBinding:
 		in := &dapr.InvokeBindingRequest{
-			Name:      output.Component,
+			Name:      output.ComponentName,
 			Operation: output.Operation,
 			Data:      payloadBytes,
 			Metadata:  output.Metadata,
@@ -684,22 +696,18 @@ func parseContext() (*FunctionContext, error) {
 
 	if !ctx.HasInputs() {
 		for name, in := range ctx.Inputs {
-			switch in.Type {
-			case OpenFuncBinding, OpenFuncTopic:
-				break
-			default:
-				return nil, fmt.Errorf("invalid input type %s: %s", name, in.Type)
+			if _, err := getBuildingBlockType(in.ComponentType); err != nil {
+				klog.Errorf("failed to get building block type for input %s: %v", name, err)
+				return nil, err
 			}
 		}
 	}
 
 	if !ctx.HasOutputs() {
 		for name, out := range ctx.Outputs {
-			switch out.Type {
-			case OpenFuncBinding, OpenFuncTopic:
-				break
-			default:
-				return nil, fmt.Errorf("invalid output type %s: %s", name, out.Type)
+			if _, err := getBuildingBlockType(out.ComponentType); err != nil {
+				klog.Errorf("failed to get building block type for output %s: %v", name, err)
+				return nil, err
 			}
 		}
 	}
@@ -783,4 +791,18 @@ func traceable(t string) bool {
 	// For dapr binding components, let the mapping conditions of the bindingQueueComponents
 	// determine if the tracing metadata can be added.
 	return bindingQueueComponents[t]
+}
+
+func getBuildingBlockType(componentType string) (ResourceType, error) {
+	typeSplit := strings.Split(componentType, ".")
+	if len(typeSplit) > 1 {
+		t := typeSplit[0]
+		switch ResourceType(t) {
+		case OpenFuncBinding, OpenFuncTopic:
+			return ResourceType(t), nil
+		default:
+			return "", fmt.Errorf("unknown component type: %s", t)
+		}
+	}
+	return "", errors.New("invalid component type")
 }
