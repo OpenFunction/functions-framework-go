@@ -167,7 +167,6 @@ func (inner *innerEvent) Clone(event *cloudevents.Event) {
 
 func (inner *innerEvent) save() {
 	if inner.cloudevent == nil || (inner.data != nil && len(inner.data.Metadata) > 0 && inner.data.UserData == nil) {
-		fmt.Println(inner.data.UserData)
 		return
 	}
 
