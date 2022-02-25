@@ -208,6 +208,37 @@ func TestParseFunctionContext(t *testing.T) {
 		t.Fatal("Error set function context env")
 	}
 
+	// test `inputs`, `outputs` fields
+	if err := os.Setenv(FunctionContextEnvName, funcCtx); err == nil {
+		if ctx, err := GetRuntimeContext(); err != nil {
+			t.Fatalf("Error parse function context: %s", err.Error())
+		} else {
+			// test `inputs`
+			if !ctx.HasInputs() || len(ctx.GetInputs()) != 2 {
+				t.Fatal("Error parse function context: failed to parse inputs")
+			}
+			if cron, exist := ctx.GetInputs()["cron"]; exist {
+				if cron.Uri == "cron_input" && cron.ComponentType == "bindings.cron" {
+
+				} else {
+					t.Fatal("Error parse function context: failed to parse input cron")
+				}
+			}
+
+			// test `outputs`
+			if !ctx.HasOutputs() || len(ctx.GetOutputs()) != 3 {
+				t.Fatal("Error parse function context: failed to parse outputs")
+			}
+			if echo, exist := ctx.GetOutputs()["echo"]; exist {
+				if path, exist := echo.Metadata["path"]; exist && echo.Uri == "echo" && path == "echo" {
+
+				} else {
+					t.Fatal("Error parse function context: failed to parse output echo")
+				}
+			}
+		}
+	}
+
 	// test `prePlugins`, `postPlugins`, `pluginsTracing` fields
 	if err := os.Setenv(FunctionContextEnvName, funcCtxWithPlugins); err == nil {
 		if ctx, err := GetRuntimeContext(); err != nil {

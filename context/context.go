@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -333,7 +332,7 @@ func NewResponseWriterWrapper(w http.ResponseWriter, statusCode int) *ResponseWr
 }
 
 func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error) {
-	if ctx.HasOutputs() {
+	if !ctx.HasOutputs() {
 		return nil, errors.New("no output")
 	}
 
@@ -384,19 +383,17 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 }
 
 func (ctx *FunctionContext) HasInputs() bool {
-	nilInputs := map[string]*Input{}
-	if reflect.DeepEqual(ctx.Inputs, nilInputs) {
-		return false
+	if len(ctx.GetInputs()) > 0 {
+		return true
 	}
-	return true
+	return false
 }
 
 func (ctx *FunctionContext) HasOutputs() bool {
-	nilOutputs := map[string]*Output{}
-	if reflect.DeepEqual(ctx.Outputs, nilOutputs) {
-		return false
+	if len(ctx.GetOutputs()) > 0 {
+		return true
 	}
-	return true
+	return false
 }
 
 func (ctx *FunctionContext) ReturnOnSuccess() Out {
@@ -694,8 +691,8 @@ func parseContext() (*FunctionContext, error) {
 	ctx.Event = &EventRequest{}
 	ctx.SyncRequest = &SyncRequest{}
 
-	if !ctx.HasInputs() {
-		for name, in := range ctx.Inputs {
+	if ctx.HasInputs() {
+		for name, in := range ctx.GetInputs() {
 			if _, err := getBuildingBlockType(in.ComponentType); err != nil {
 				klog.Errorf("failed to get building block type for input %s: %v", name, err)
 				return nil, err
@@ -703,8 +700,8 @@ func parseContext() (*FunctionContext, error) {
 		}
 	}
 
-	if !ctx.HasOutputs() {
-		for name, out := range ctx.Outputs {
+	if ctx.HasOutputs() {
+		for name, out := range ctx.GetOutputs() {
 			if _, err := getBuildingBlockType(out.ComponentType); err != nil {
 				klog.Errorf("failed to get building block type for output %s: %v", name, err)
 				return nil, err
