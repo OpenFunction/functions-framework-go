@@ -3,7 +3,6 @@ package context
 import (
 	"encoding/json"
 	"fmt"
-	"reflect"
 	"sync"
 	"time"
 
@@ -167,7 +166,7 @@ func (inner *innerEvent) Clone(event *cloudevents.Event) {
 }
 
 func (inner *innerEvent) save() {
-	if inner.cloudevent == nil || (inner.data != nil && reflect.DeepEqual(inner.data.Metadata, map[string]string{}) && inner.data.UserData == nil) {
+	if inner.cloudevent == nil || (inner.data != nil && len(inner.data.Metadata) > 0 && inner.data.UserData == nil) {
 		fmt.Println(inner.data.UserData)
 		return
 	}
