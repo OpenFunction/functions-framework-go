@@ -9,10 +9,10 @@ import (
 )
 
 func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) error {
-	event := ofCtx.GetBindingEvent()
+	event := ofCtx.GetInnerEvent()
 
 	span, nCtx, err := tracer.CreateEntrySpan(ofCtx.GetNativeContext(), ofCtx.GetName(), func(headerKey string) (string, error) {
-		value, _ := event.Metadata[headerKey]
+		value, _ := event.GetMetadata()[headerKey]
 		klog.Infof("key: %s value: %s", headerKey, value)
 		return value, nil
 	})

@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"sync"
@@ -327,7 +326,7 @@ func NewResponseWriterWrapper(w http.ResponseWriter, statusCode int) *ResponseWr
 }
 
 func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error) {
-	if ctx.HasOutputs() {
+	if !ctx.HasOutputs() {
 		return nil, errors.New("no output")
 	}
 
@@ -378,19 +377,17 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 }
 
 func (ctx *FunctionContext) HasInputs() bool {
-	nilInputs := map[string]*Input{}
-	if reflect.DeepEqual(ctx.Inputs, nilInputs) {
-		return false
+	if ctx.Inputs != nil && len(ctx.Inputs) > 0 {
+		return true
 	}
-	return true
+	return false
 }
 
 func (ctx *FunctionContext) HasOutputs() bool {
-	nilOutputs := map[string]*Output{}
-	if reflect.DeepEqual(ctx.Outputs, nilOutputs) {
-		return false
+	if ctx.Outputs != nil && len(ctx.Outputs) > 0 {
+		return true
 	}
-	return true
+	return false
 }
 
 func (ctx *FunctionContext) ReturnOnSuccess() Out {
@@ -692,7 +689,7 @@ func parseContext() (*FunctionContext, error) {
 	ctx.Event = &EventRequest{}
 	ctx.SyncRequest = &SyncRequest{}
 
-	if !ctx.HasInputs() {
+	if ctx.HasInputs() {
 		for name, in := range ctx.Inputs {
 			switch in.Type {
 			case OpenFuncBinding, OpenFuncTopic:
@@ -703,7 +700,7 @@ func parseContext() (*FunctionContext, error) {
 		}
 	}
 
-	if !ctx.HasOutputs() {
+	if ctx.HasOutputs() {
 		for name, out := range ctx.Outputs {
 			switch out.Type {
 			case OpenFuncBinding, OpenFuncTopic:

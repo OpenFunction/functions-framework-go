@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"time"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/OpenFunction/functions-framework-go/framework"
@@ -11,27 +12,30 @@ import (
 	"k8s.io/klog/v2"
 )
 
-func Handler(ofCtx ofctx.Context, in []byte) (out ofctx.Out, err error) {
+func bindingsFunction(ofCtx ofctx.Context, in []byte) (ofctx.Out, error) {
 	tracer := go2sky.GetGlobalTracer()
 	if tracer == nil {
-		return out.WithData([]byte("go2sky is not enabled")), nil
+		klog.Warning("go2sky is not enabled")
+		return ofCtx.ReturnOnInternalError().WithData([]byte("go2sky is not enabled")), nil
 	}
 
 	span, err := tracer.CreateExitSpan(ofCtx.GetNativeContext(), "sample-topic", "sample-topic", func(headerKey, headerValue string) error {
-		ofCtx.GetInnerEvent().SetMetadata(headerValue, headerValue)
+		ofCtx.GetInnerEvent().SetMetadata(headerKey, headerValue)
 		return nil
 	})
 	if err != nil {
-		return out.WithData([]byte(err.Error())), nil
+		klog.Error(err)
+		return ofCtx.ReturnOnInternalError().WithData([]byte(err.Error())), err
 	}
 	defer span.End()
 
-	resp, err := ofCtx.Send("sample-topic", in)
+	_, err = ofCtx.Send("sample-topic", []byte(time.Now().String()))
 	if err != nil {
-		return out.WithData([]byte(err.Error())), nil
+		klog.Error(err)
+		return ofCtx.ReturnOnInternalError().WithData([]byte(err.Error())), err
 	}
 
-	return out.WithData(resp), err
+	return ofCtx.ReturnOnSuccess().WithData([]byte("hello there")), nil
 }
 
 func main() {
@@ -44,7 +48,7 @@ func main() {
 		"skywalking": &skywalking.PluginSkywalking{},
 	})
 
-	err = fwk.Register(ctx, Handler)
+	err = fwk.Register(ctx, bindingsFunction)
 	if err != nil {
 		klog.Fatal(err)
 	}
