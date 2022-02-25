@@ -58,8 +58,6 @@ spec:
             - containerPort: 8080
           imagePullPolicy: IfNotPresent
           env:
-            - name: GOPROXY
-              value: https://goproxy.cn
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -79,8 +77,8 @@ spec:
                   "postPlugins": [],
                   "inputs": {
                     "of": {
-                      "type": "bindings",
-                      "component": "sample-topic"
+                      "componentType": "bindings.kafka",
+                      "componentName": "sample-topic"
                     }
                   },
                   "pluginsTracing": {
@@ -128,8 +126,6 @@ spec:
             - containerPort: 8081
           imagePullPolicy: IfNotPresent
           env:
-            - name: GOPROXY
-              value: https://goproxy.cn
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -149,16 +145,15 @@ spec:
                   "postPlugins": [],
                   "inputs": {
                     "cron": {
-                      "type": "bindings",
-                      "component": "cron"
+                      "componentType": "bindings.cron",
+                      "componentName": "cron"
                     }
                   },
                   "outputs": {
                     "sample-topic":  {
-                      "type": "bindings",
                       "componentType": "bindings.kafka",
                       "operation": "create",
-                      "component": "sample-topic"
+                      "componentName": "sample-topic"
                     }
                   },
                   "pluginsTracing": {
@@ -174,7 +169,7 @@ spec:
                       "tag2": "value2"
                     },
                     "baggage": {
-                      "CONSUMER_KEY": "of"
+                      "CONSUMER_KEY": "provider"
                     }
                   }
                 }

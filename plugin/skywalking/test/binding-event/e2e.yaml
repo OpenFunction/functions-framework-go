@@ -18,6 +18,12 @@ setup:
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update
         helm install dapr-kafka bitnami/kafka --wait -n kafka --create-namespace -f ./plugin/skywalking/test/binding-event/kafka/kafka-non-persistence.yaml
+    - name: install mock collector
+      path: plugin/skywalking/test/binding-event/oap-mock/manifests.yaml
+      wait:
+        - namespace: default
+          resource: pod
+          for: condition=Ready
     - name: build image
       command: |
         docker build -t skywalking_e2e_provider:latest -f plugin/skywalking/test/binding-event/docker/Dockerfile.provider .
@@ -32,6 +38,9 @@ setup:
           for: condition=Ready
   kind:
     expose-ports:
+      - namespace: default
+        resource: service/mock-collector
+        port: 12800
   timeout: 20m
 
 cleanup:
@@ -39,11 +48,7 @@ cleanup:
   on: always
 
 trigger:
-  action: http
-  interval: 3s
-  times: 5
-  url: http://${deployment_nginx1_host}:${deployment_nginx1_80}/
-  method: GET
+  action: ""
 
 verify:
   # verify with retry strategy
@@ -53,7 +58,5 @@ verify:
     # the interval between two attempts, e.g. 10s, 1m.
     interval: 10s
   cases:
-    - actual: ../../test/verify/1.actual.yaml
-      expected: ../../test/verify/1.expected.yaml
-    - actual: ../../test/verify/2.actual.yaml
-      expected: ../../test/verify/2.expected.yaml
+    - query: curl http://${service_collector_host}:${service_collector_12800}/receiveData
+      expected: expected.data.yml

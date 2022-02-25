@@ -1,0 +1,45 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mock-collector
+  labels:
+    app: mock-collector
+spec:
+  selector:
+    matchLabels:
+      app: mock-collector
+  template:
+    metadata:
+      labels:
+        app: mock-collector
+    spec:
+      containers:
+        - name: mock
+          image: ghcr.io/apache/skywalking-agent-test-tool/mock-collector:3792b52c5b27462630bfd556bdc4cc7b5c41b321
+          ports:
+            - containerPort: 19876
+              protocol: TCP
+              name: oap
+            - containerPort: 12800
+              protocol: TCP
+              name: verify
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            httpGet:
+              port: 12800
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: collector
+spec:
+  selector:
+    app: mock-collector
+  ports:
+    - port: 19876
+      protocol: TCP
+      name: oap
+    - port: 12800
+      protocol: TCP
+      name: verify
