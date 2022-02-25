@@ -149,16 +149,15 @@ spec:
                   "postPlugins": [],
                   "inputs": {
                     "cron": {
-                      "type": "bindings",
-                      "component": "cron"
+                      "componentType": "bindings.cron",
+                      "componentName": "cron"
                     }
                   },
                   "outputs": {
                     "sample-topic":  {
-                      "type": "bindings",
                       "componentType": "bindings.kafka",
                       "operation": "create",
-                      "component": "sample-topic"
+                      "componentName": "sample-topic"
                     }
                   },
                   "pluginsTracing": {
