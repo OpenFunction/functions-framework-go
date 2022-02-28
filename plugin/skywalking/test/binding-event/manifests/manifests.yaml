@@ -58,8 +58,6 @@ spec:
             - containerPort: 8080
           imagePullPolicy: IfNotPresent
           env:
-            - name: GOPROXY
-              value: https://goproxy.cn
             - name: POD_NAME
               valueFrom:
                 fieldRef:
@@ -128,8 +126,6 @@ spec:
             - containerPort: 8081
           imagePullPolicy: IfNotPresent
           env:
-            - name: GOPROXY
-              value: https://goproxy.cn
             - name: POD_NAME
               valueFrom:
                 fieldRef:

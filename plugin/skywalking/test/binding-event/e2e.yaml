@@ -2,10 +2,6 @@ setup:
   env: kind
   file: kind.yaml
   steps:
-    - name: copy kubectl config
-      command: |
-        # kind k8s cluster is in $TMPDIR
-        cp $TMPDIR/e2e-k8s.config ~/.kube/config
     - name: install dapr
       command: |
         dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
@@ -18,6 +14,12 @@ setup:
         helm repo add bitnami https://charts.bitnami.com/bitnami
         helm repo update
         helm install dapr-kafka bitnami/kafka --wait -n kafka --create-namespace -f ./plugin/skywalking/test/binding-event/kafka/kafka-non-persistence.yaml
+    - name: install mock collector
+      path: plugin/skywalking/test/binding-event/oap-mock/manifests.yaml
+      wait:
+        - namespace: default
+          resource: pod
+          for: condition=Ready
     - name: build image
       command: |
         docker build -t skywalking_e2e_provider:latest -f plugin/skywalking/test/binding-event/docker/Dockerfile.provider .
@@ -32,9 +34,9 @@ setup:
           for: condition=Ready
   kind:
     expose-ports:
-      - namespace: skywalking
-        resource: service/skywalking-ui
-        port: 80
+      - namespace: default
+        resource: service/mock-collector
+        port: 12800
   timeout: 20m
 
 cleanup:
@@ -43,6 +45,7 @@ cleanup:
 
 trigger:
   action: ""
+
 verify:
   # verify with retry strategy
   retry:
@@ -51,5 +54,5 @@ verify:
     # the interval between two attempts, e.g. 10s, 1m.
     interval: 10s
   cases:
-    - query: curl http://${mockoap_host}:${mockoap_12800}/receiveData
+    - query: curl http://${service_collector_host}:${service_collector_12800}/receiveData
       expected: expected.data.yml
