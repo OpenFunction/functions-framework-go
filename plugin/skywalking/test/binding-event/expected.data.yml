@@ -37,7 +37,7 @@ segmentItems:
       - key: namespace
         value: default
       - key: func
-        value: function-test
+        value: provider
       - key: layer
         value: faas
       - key: tag1
@@ -72,7 +72,7 @@ segmentItems:
       - key: namespace
         value: default
       - key: func
-        value: function-test
+        value: of
       - key: layer
         value: faas
       - key: tag1
