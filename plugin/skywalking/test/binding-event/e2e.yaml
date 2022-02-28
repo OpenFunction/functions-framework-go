@@ -5,7 +5,7 @@ setup:
     - name: install dapr
       command: |
         dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
-        dapr init -k
+        dapr init -k --log-as-json
     - name: install helm
       command: |
         curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
@@ -35,7 +35,7 @@ setup:
   kind:
     expose-ports:
       - namespace: default
-        resource: service/mock-collector
+        resource: service/collector
         port: 12800
   timeout: 20m
 

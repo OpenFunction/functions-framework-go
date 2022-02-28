@@ -85,7 +85,7 @@ spec:
                     "enable": true,
                     "provider": {
                       "name": "skywalking",
-                      "oapServer": "skywalking-oap.skywalking.svc:11800"
+                      "oapServer": "collector.default.svc:19876"
                     },
                     "tags": {
                       "func": "function-test",
@@ -160,7 +160,7 @@ spec:
                     "enable": true,
                     "provider": {
                       "name": "skywalking",
-                      "oapServer": "skywalking-oap.skywalking.svc:11800"
+                      "oapServer": "collector.default.svc:19876"
                     },
                     "tags": {
                       "func": "function-test",
