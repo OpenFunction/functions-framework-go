@@ -15,7 +15,7 @@ setup:
         helm repo update
         helm install dapr-kafka bitnami/kafka --wait -n kafka --create-namespace -f ./plugin/skywalking/test/binding-event/kafka/kafka-non-persistence.yaml
     - name: install mock collector
-      path: plugin/skywalking/test/binding-event/oap-mock/manifests.yaml
+      path: oap-mock/manifests.yaml
       wait:
         - namespace: default
           resource: pod
@@ -27,7 +27,7 @@ setup:
         docker build -t skywalking_e2e_of:latest -f plugin/skywalking/test/binding-event/docker/Dockerfile.of .
         kind load docker-image skywalking_e2e_of:latest
     - name: setup manifests
-      path: plugin/skywalking/test/binding-event/manifests
+      path: manifests
       wait:
         - namespace: default
           resource: pod
