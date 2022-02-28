@@ -18,7 +18,6 @@ segmentItems:
       spanType: Exit
       peer: sample-topic
       skipAnalysis: false
-      tags: []
     - operationName: provider
       parentSpanId: -1
       spanId: 0
