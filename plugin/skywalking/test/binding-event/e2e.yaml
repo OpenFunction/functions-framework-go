@@ -32,6 +32,9 @@ setup:
           for: condition=Ready
   kind:
     expose-ports:
+      - namespace: skywalking
+        resource: service/skywalking-ui
+        port: 80
   timeout: 20m
 
 cleanup:
@@ -39,12 +42,7 @@ cleanup:
   on: always
 
 trigger:
-  action: http
-  interval: 3s
-  times: 5
-  url: http://${deployment_nginx1_host}:${deployment_nginx1_80}/
-  method: GET
-
+  action: ""
 verify:
   # verify with retry strategy
   retry:
@@ -53,7 +51,5 @@ verify:
     # the interval between two attempts, e.g. 10s, 1m.
     interval: 10s
   cases:
-    - actual: ../../test/verify/1.actual.yaml
-      expected: ../../test/verify/1.expected.yaml
-    - actual: ../../test/verify/2.actual.yaml
-      expected: ../../test/verify/2.expected.yaml
+    - query: curl http://${mockoap_host}:${mockoap_12800}/receiveData
+      expected: expected.data.yml
