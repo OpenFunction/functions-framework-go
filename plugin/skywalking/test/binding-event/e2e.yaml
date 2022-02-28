@@ -2,10 +2,6 @@ setup:
   env: kind
   file: kind.yaml
   steps:
-    - name: copy kubectl config
-      command: |
-        # kind k8s cluster is in $TMPDIR
-        cp $TMPDIR/e2e-k8s.config ~/.kube/config
     - name: install dapr
       command: |
         dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
