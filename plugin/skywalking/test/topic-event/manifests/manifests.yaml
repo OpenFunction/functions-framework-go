@@ -117,7 +117,7 @@ spec:
         dapr.io/app-protocol: "grpc"
     spec:
       containers:
-        - name: provider
+        - name: publish
           image: skywalking_e2e_publish:latest
           ports:
             - containerPort: 8081
@@ -150,7 +150,7 @@ spec:
                   },
                   "outputs": {
                     "publish-topic":  {
-                      "componentType": "publish.kafka",
+                      "componentType": "pubsub.kafka",
                       "componentName": "publish-topic",
                       "uri": "publish"
                     }
