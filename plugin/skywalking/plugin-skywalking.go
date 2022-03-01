@@ -23,6 +23,9 @@ const (
 
 var (
 	initGo2skyOnce sync.Once
+
+	tagComponentType go2sky.Tag = "component.type"
+	tagRuntime       go2sky.Tag = "runtime"
 )
 
 type klogWrapper struct {
@@ -102,6 +105,8 @@ func (p *PluginSkywalking) ExecPreHook(ctx ofctx.RuntimeContext, plugins map[str
 		return preSyncRequestLogic(ctx, p.tracer)
 	} else if ctx.GetBindingEvent() != nil {
 		return preBindingEventLogic(ctx, p.tracer)
+	} else if ctx.GetTopicEvent() != nil {
+		return preTopicEventLogic(ctx, p.tracer)
 	}
 	return nil
 }
@@ -113,8 +118,8 @@ func (p *PluginSkywalking) ExecPostHook(ctx ofctx.RuntimeContext, plugins map[st
 
 	if ctx.GetSyncRequest().Request != nil {
 		return postSyncRequestLogic(ctx)
-	} else if ctx.GetBindingEvent() != nil {
-		return postBindingEventLogic(ctx)
+	} else if ctx.GetBindingEvent() != nil || ctx.GetTopicEvent() != nil {
+		return postAsyncRequestLogic(ctx)
 	}
 	return nil
 }

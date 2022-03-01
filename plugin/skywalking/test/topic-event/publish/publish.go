@@ -16,11 +16,11 @@ import (
 func bindingsFunction(ofCtx ofctx.Context, in []byte) (ofctx.Out, error) {
 	tracer := go2sky.GetGlobalTracer()
 	if tracer == nil {
-		klog.Warning("go2sky is not enabled")
+		klog.Warningf("go2sky is not enabled")
 		return ofCtx.ReturnOnInternalError().WithData([]byte("go2sky is not enabled")), nil
 	}
 
-	span, err := tracer.CreateExitSpan(ofCtx.GetNativeContext(), "sample-topic", "sample-topic", func(headerKey, headerValue string) error {
+	span, err := tracer.CreateExitSpan(ofCtx.GetNativeContext(), "publish-topic", "publish-topic", func(headerKey, headerValue string) error {
 		ofCtx.GetInnerEvent().SetMetadata(headerKey, headerValue)
 		return nil
 	})
@@ -33,12 +33,13 @@ func bindingsFunction(ofCtx ofctx.Context, in []byte) (ofctx.Out, error) {
 	span.SetSpanLayer(agentv3.SpanLayer_FAAS)
 	span.SetComponent(5013)
 
-	_, err = ofCtx.Send("sample-topic", []byte(time.Now().String()))
+	// topic
+	_, err = ofCtx.Send("publish-topic", []byte(time.Now().String()))
+
 	if err != nil {
 		klog.Error(err)
 		return ofCtx.ReturnOnInternalError().WithData([]byte(err.Error())), err
 	}
-
 	return ofCtx.ReturnOnSuccess().WithData([]byte("hello there")), nil
 }
 

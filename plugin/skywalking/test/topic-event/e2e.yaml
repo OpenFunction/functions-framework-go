@@ -22,10 +22,10 @@ setup:
           for: condition=Ready
     - name: build image
       command: |
-        docker build -t skywalking_e2e_provider:latest -f plugin/skywalking/test/binding-event/docker/Dockerfile.provider .
-        kind load docker-image skywalking_e2e_provider:latest
-        docker build -t skywalking_e2e_of:latest -f plugin/skywalking/test/binding-event/docker/Dockerfile.of .
-        kind load docker-image skywalking_e2e_of:latest
+        docker build -t skywalking_e2e_publish:latest -f plugin/skywalking/test/topic-event/docker/Dockerfile.publish .
+        kind load docker-image skywalking_e2e_publish:latest
+        docker build -t skywalking_e2e_subscribe:latest -f plugin/skywalking/test/topic-event/docker/Dockerfile.subscribe .
+        kind load docker-image skywalking_e2e_subscribe:latest
     - name: setup manifests
       path: manifests
       wait:

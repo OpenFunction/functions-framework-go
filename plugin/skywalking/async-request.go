@@ -7,7 +7,7 @@ import (
 	"github.com/SkyAPM/go2sky"
 )
 
-func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) error {
+func preAsyncRequestCommonLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) (go2sky.Span, error) {
 	event := ofCtx.GetInnerEvent()
 
 	span, nCtx, err := tracer.CreateEntrySpan(ofCtx.GetNativeContext(), ofCtx.GetName(), func(headerKey string) (string, error) {
@@ -15,14 +15,34 @@ func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) err
 		return value, nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	ofCtx.SetNativeContext(nCtx)
+	span.Tag(tagRuntime, string(ofctx.Async))
 	setPublicAttrs(nCtx, ofCtx, span)
+
+	return span, err
+}
+
+func preTopicEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) error {
+	span, err := preAsyncRequestCommonLogic(ofCtx, tracer)
+	if err != nil {
+		return err
+	}
+	span.Tag(tagComponentType, string(ofctx.OpenFuncTopic))
 	return nil
 }
 
-func postBindingEventLogic(ctx ofctx.RuntimeContext) error {
+func preBindingEventLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) error {
+	span, err := preAsyncRequestCommonLogic(ofCtx, tracer)
+	if err != nil {
+		return err
+	}
+	span.Tag(tagComponentType, string(ofctx.OpenFuncBinding))
+	return nil
+}
+
+func postAsyncRequestLogic(ctx ofctx.RuntimeContext) error {
 	span := go2sky.ActiveSpan(ctx.GetNativeContext())
 	if span == nil {
 		return nil

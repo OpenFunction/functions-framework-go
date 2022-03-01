@@ -1,13 +1,13 @@
 segmentItems:
 {{- contains .segmentItems }}
-- serviceName: provider
+- serviceName: publish
   segmentSize: {{ gt .segmentSize 0 }}
   segments:
   {{- contains .segments }}
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: sample-topic
+    - operationName: publish-topic
       parentSpanId: 0
       spanId: 1
       spanLayer: FAAS
@@ -16,9 +16,9 @@ segmentItems:
       componentId: 5013
       isError: false
       spanType: Exit
-      peer: sample-topic
+      peer: publish-topic
       skipAnalysis: false
-    - operationName: provider
+    - operationName: publish
       parentSpanId: -1
       spanId: 0
       spanLayer: FAAS
@@ -36,7 +36,7 @@ segmentItems:
       - key: namespace
         value: default
       - key: func
-        value: provider
+        value: publish
       - key: layer
         value: faas
       - key: tag1
@@ -50,14 +50,14 @@ segmentItems:
     {{- end }}
   {{- end }}
 {{- end }}
-- serviceName: of
+- serviceName: subscribe
   segmentSize: {{ gt .segmentSize 0 }}
   segments:
   {{- contains .segments }}
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: of
+    - operationName: subscribe
       parentSpanId: -1
       spanId: 0
       spanLayer: FAAS
@@ -75,7 +75,7 @@ segmentItems:
       - key: namespace
         value: default
       - key: func
-        value: of
+        value: subscribe
       - key: layer
         value: faas
       - key: tag1
@@ -85,17 +85,17 @@ segmentItems:
       - key: runtime
         value: Async
       - key: component.type
-        value: bindings
+        value: pubsub
     {{- end }}
       refs:
         {{- contains .refs }}
-        - parentEndpoint: provider
-          networkAddress: 'sample-topic'
+        - parentEndpoint: publish
+          networkAddress: 'publish-topic'
           refType: CrossProcess
           parentSpanId: 1
           parentTraceSegmentId: {{ notEmpty .parentTraceSegmentId }}
           parentServiceInstance: {{ notEmpty .parentServiceInstance }}
-          parentService: provider
+          parentService: publish
           traceId: {{ notEmpty .traceId }}
         {{- end}}
     {{- end }}

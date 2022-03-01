@@ -23,6 +23,7 @@ func preSyncRequestLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) erro
 
 	span.Tag(go2sky.TagHTTPMethod, request.Method)
 	span.Tag(go2sky.TagURL, fmt.Sprintf("%s%s", request.Host, request.URL.Path))
+	span.Tag(tagRuntime, string(ofctx.Knative))
 	setPublicAttrs(nCtx, ofCtx, span)
 	return nil
 }

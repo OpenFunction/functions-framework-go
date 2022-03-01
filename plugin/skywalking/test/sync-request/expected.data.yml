@@ -56,6 +56,8 @@ segmentItems:
         value: value1
       - key: tag2
         value: value2
+      - key: runtime
+        value: Knative
     {{- end }}
   {{- end }}
 {{- end }}
