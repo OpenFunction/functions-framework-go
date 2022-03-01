@@ -1,6 +1,7 @@
 package context
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"sync"
@@ -24,7 +25,7 @@ type InnerEvent interface {
 	SetUserData(data interface{})
 
 	// GetUserData returns the userData in innerEventData.
-	GetUserData() interface{}
+	GetUserData() []byte
 
 	// GetCloudEvent returns the cloudevent object in innerEvent.
 	GetCloudEvent() cloudevents.Event
@@ -50,7 +51,7 @@ type innerEvent struct {
 
 type innerEventData struct {
 	Metadata map[string]string `json:"metadata,omitempty"`
-	UserData interface{}       `json:"userData,omitempty"`
+	UserData []byte            `json:"userData,omitempty"`
 }
 
 func NewInnerEvent(ctx RuntimeContext) InnerEvent {
@@ -79,12 +80,13 @@ func (inner *innerEvent) GetMetadata() map[string]string {
 }
 
 func (inner *innerEvent) SetUserData(data interface{}) {
+	rawData := ConvertUserDataToBytes(data)
 	inner.mu.Lock()
 	defer func() {
 		inner.save()
 		inner.mu.Unlock()
 	}()
-	inner.data.UserData = data
+	inner.data.UserData = rawData
 }
 
 func (inner *innerEvent) SetSubject(s string) {
@@ -93,7 +95,7 @@ func (inner *innerEvent) SetSubject(s string) {
 	inner.cloudevent.SetSubject(s)
 }
 
-func (inner *innerEvent) GetUserData() interface{} {
+func (inner *innerEvent) GetUserData() []byte {
 	return inner.data.UserData
 }
 
@@ -152,26 +154,33 @@ func (inner *innerEvent) Clone(event *cloudevents.Event) {
 		inner.mu.Unlock()
 	}()
 
+	var ud []byte
 	inner.cloudevent = event
 
 	d := &innerEventData{}
 	if event.Data() != nil {
 		if err := event.DataAs(d); err == nil {
 			inner.data.Metadata = d.Metadata
-			inner.data.UserData = d.UserData
+			ud = d.UserData
 		} else {
-			inner.data.UserData = event.Data()
+			ud = event.Data()
 		}
+		if event.DataBase64 {
+			if rawUserData, err := base64.StdEncoding.DecodeString(string(ud)); err == nil {
+				inner.data.UserData = rawUserData
+				return
+			}
+		}
+		inner.data.UserData = ud
 	}
 }
 
 func (inner *innerEvent) save() {
 	if inner.cloudevent == nil || (inner.data != nil && len(inner.data.Metadata) > 0 && inner.data.UserData == nil) {
-		fmt.Println(inner.data.UserData)
 		return
 	}
 
-	if err := inner.cloudevent.SetData(cloudevents.ApplicationJSON, *inner.data); err != nil {
+	if err := inner.cloudevent.SetData(cloudevents.ApplicationJSON, ConvertUserDataToBytes(*inner.data)); err != nil {
 		klog.Errorf("failed to set cloudevent data: %v\n", err)
 	}
 }
@@ -190,9 +199,6 @@ func convertEvent(ctx RuntimeContext, inputName string, data interface{}) InnerE
 				inner.Clone(ce)
 				return inner
 			}
-		case cloudevents.Event:
-			inner.Clone(&data)
-			return inner
 		default:
 			inner.SetSubject(inputName)
 			inner.SetUserData(data)

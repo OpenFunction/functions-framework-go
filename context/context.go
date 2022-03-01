@@ -339,8 +339,7 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 	var err error
 	var output *Output
 	var response *dapr.BindingEvent
-	var payload interface{}
-	var payloadBytes []byte
+	var payload []byte
 
 	if v, ok := ctx.Outputs[outputName]; ok {
 		output = v
@@ -349,14 +348,12 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 	}
 
 	payload = data
-	payloadBytes = data
 
 	if traceable(output.ComponentType) {
 		ie := NewInnerEvent(ctx)
 		ie.MergeMetadata(ctx.GetInnerEvent())
 		ie.SetUserData(data)
-		payload = ie.GetCloudEvent()
-		payloadBytes = ie.GetCloudEventJSON()
+		payload = ie.GetCloudEventJSON()
 	}
 
 	switch output.GetType() {
@@ -366,7 +363,7 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 		in := &dapr.InvokeBindingRequest{
 			Name:      output.ComponentName,
 			Operation: output.Operation,
-			Data:      payloadBytes,
+			Data:      payload,
 			Metadata:  output.Metadata,
 		}
 		response, err = ctx.daprClient.InvokeBinding(context.Background(), in)
@@ -484,7 +481,7 @@ func (ctx *FunctionContext) SetEvent(inputName string, event interface{}) {
 		ctx.setEvent(inputName, be, nil, nil, ie)
 	case *common.TopicEvent:
 		te := event.(*common.TopicEvent)
-		ie := convertEvent(ctx, inputName, te.Data)
+		ie := convertEvent(ctx, inputName, ConvertUserDataToBytes(te.Data))
 		ctx.setEvent(inputName, nil, te, nil, ie)
 	case *cloudevents.Event:
 		ce := event.(*cloudevents.Event)
@@ -802,4 +799,15 @@ func getBuildingBlockType(componentType string) (ResourceType, error) {
 		}
 	}
 	return "", errors.New("invalid component type")
+}
+
+func ConvertUserDataToBytes(data interface{}) []byte {
+	if d, ok := data.([]byte); ok {
+		return d
+	}
+	if d, err := json.Marshal(data); err != nil {
+		return nil
+	} else {
+		return d
+	}
 }

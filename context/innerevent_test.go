@@ -102,7 +102,7 @@ func TestInnerEvent(t *testing.T) {
 	eventTest(t, ctx, te1, byteData)
 
 	te2 := &common.TopicEvent{
-		Data: ie.GetCloudEvent(),
+		Data: ie.GetCloudEventJSON(),
 	}
 	eventTest(t, ctx, te2, byteData)
 
@@ -126,11 +126,10 @@ func TestInnerEvent(t *testing.T) {
 }
 
 func eventTest(t *testing.T, ctx RuntimeContext, event interface{}, target []byte) {
-
 	// receive test
 	ctx.SetEvent("cron", event)
 	ie := ctx.GetInnerEvent()
-	if !bytes.Equal(convertToByte(ie.GetUserData()), target) {
+	if !bytes.Equal(ie.GetUserData(), target) {
 		t.Fatal("Error get user data in innerEvent")
 	}
 	ie.SetMetadata("k1", "v1")
@@ -156,17 +155,13 @@ func eventTest(t *testing.T, ctx RuntimeContext, event interface{}, target []byt
 
 	udInEvent := map[string]string{}
 	if ie2.GetUserData() != nil {
-		ud := ie2.GetUserData()
-		switch ud := ud.(type) {
-		case []byte:
-			if err := json.Unmarshal(ud, &udInEvent); err != nil {
-				t.Fatal("Error unmarshal user data in inner event")
-			}
-			if v, exist := udInEvent["foo2"]; exist && v == "bar2" {
+		if err := json.Unmarshal(ie2.GetUserData(), &udInEvent); err != nil {
+			t.Fatal("Error unmarshal user data in inner event")
+		}
+		if v, exist := udInEvent["foo2"]; exist && v == "bar2" {
 
-			} else {
-				t.Fatal("Error set inner event userdata")
-			}
+		} else {
+			t.Fatal("Error set inner event userdata")
 		}
 	} else {
 		t.Fatal("Error set inner event userdata")
@@ -184,8 +179,7 @@ func eventTest(t *testing.T, ctx RuntimeContext, event interface{}, target []byt
 	}
 
 	ud := map[string]string{}
-	udByte, _ := json.Marshal(ieData.UserData)
-	if err := json.Unmarshal(udByte, &ud); err != nil {
+	if err := json.Unmarshal(ieData.UserData, &ud); err != nil {
 		t.Fatal("Error unmarshal user data in inner event")
 	}
 
@@ -193,17 +187,5 @@ func eventTest(t *testing.T, ctx RuntimeContext, event interface{}, target []byt
 
 	} else {
 		t.Fatal("Error save inner event userdata")
-	}
-
-}
-
-func convertToByte(data interface{}) []byte {
-	if d, ok := data.([]byte); ok {
-		return d
-	}
-	if d, err := json.Marshal(data); err != nil {
-		return nil
-	} else {
-		return d
 	}
 }
