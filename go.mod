@@ -3,7 +3,7 @@ module github.com/OpenFunction/functions-framework-go
 go 1.15
 
 require (
-	github.com/SkyAPM/go2sky v1.4.0
+	github.com/SkyAPM/go2sky v1.4.1-0.20220302064553-acee2ee29345
 	github.com/cloudevents/sdk-go/v2 v2.4.1
 	github.com/dapr/dapr v1.6.0
 	github.com/dapr/go-sdk v1.3.1
@@ -16,5 +16,3 @@ require (
 	k8s.io/klog/v2 v2.30.0
 	skywalking.apache.org/repo/goapi v0.0.0-20220121092418-9c455d0dda3f
 )
-
-replace github.com/SkyAPM/go2sky v1.4.0 => github.com/arugal/go2sky v0.1.1-0.20220224152451-4c6b64db6172

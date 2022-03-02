@@ -62,9 +62,6 @@ func initGo2sky(ofCtx ofctx.RuntimeContext, p *PluginSkywalking) {
 			klog.Errorf("new go2sky grpc reporter error\n", err)
 			return
 		}
-		if err != nil {
-			return
-		}
 		tracer, err := go2sky.NewTracer(ofCtx.GetName(), go2sky.WithReporter(r), go2sky.WithInstance(ofCtx.GetPluginsTracingCfg().GetTags()["instance"]))
 		if err != nil {
 			klog.Errorf("new go2sky tracer error\n", err)
