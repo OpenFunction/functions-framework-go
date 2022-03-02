@@ -2,7 +2,6 @@ package runtime
 
 import (
 	"context"
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
 
@@ -130,7 +129,7 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 			userData := rm.FuncContext.GetInnerEvent().GetUserData()
 
 			// pass user data to user function
-			out, err := function(functionContext, convertUserDataToBytes(userData))
+			out, err := function(functionContext, userData)
 
 			rm.FuncContext.WithOut(out.GetOut())
 			rm.FuncContext.WithError(err)
@@ -152,15 +151,4 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 	}
 
 	rm.ProcessPostHooks()
-}
-
-func convertUserDataToBytes(data interface{}) []byte {
-	if d, ok := data.([]byte); ok {
-		return d
-	}
-	if d, err := json.Marshal(data); err != nil {
-		return nil
-	} else {
-		return d
-	}
 }
