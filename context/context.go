@@ -58,7 +58,16 @@ const (
 type Runtime string
 type ResourceType string
 
+type NativeContext interface {
+	// GetNativeContext returns the Go native context object.
+	GetNativeContext() context.Context
+
+	// SetNativeContext set the Go native context object.
+	SetNativeContext(context.Context)
+}
+
 type RuntimeContext interface {
+	NativeContext
 
 	// GetName returns the function's name.
 	GetName() string
@@ -68,9 +77,6 @@ type RuntimeContext interface {
 
 	// GetContext returns the pointer of raw OpenFunction FunctionContext object.
 	GetContext() *FunctionContext
-
-	// GetNativeContext returns the Go native context object.
-	GetNativeContext() context.Context
 
 	// GetOut returns the pointer of raw OpenFunction FunctionOut object.
 	GetOut() Out
@@ -150,6 +156,7 @@ type RuntimeContext interface {
 }
 
 type Context interface {
+	NativeContext
 
 	// Send provides the ability to allow the user to send data to a specified output target.
 	Send(outputName string, data []byte) ([]byte, error)
@@ -464,6 +471,10 @@ func (ctx *FunctionContext) GetMode() string {
 
 func (ctx *FunctionContext) GetNativeContext() context.Context {
 	return ctx.Ctx
+}
+
+func (ctx *FunctionContext) SetNativeContext(c context.Context) {
+	ctx.Ctx = c
 }
 
 func (ctx *FunctionContext) SetSyncRequest(w http.ResponseWriter, r *http.Request) {
@@ -804,6 +815,9 @@ func getBuildingBlockType(componentType string) (ResourceType, error) {
 func ConvertUserDataToBytes(data interface{}) []byte {
 	if d, ok := data.([]byte); ok {
 		return d
+	}
+	if d, ok := data.(string); ok {
+		return []byte(d)
 	}
 	if d, err := json.Marshal(data); err != nil {
 		return nil

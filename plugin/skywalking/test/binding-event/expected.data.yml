@@ -1,33 +1,24 @@
 segmentItems:
 {{- contains .segmentItems }}
-- serviceName: function-test
+- serviceName: provider
   segmentSize: {{ gt .segmentSize 0 }}
   segments:
   {{- contains .segments }}
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: /GET/helloserver
+    - operationName: sample-topic
       parentSpanId: 0
       spanId: 1
-      spanLayer: Http
+      spanLayer: FAAS
       startTime: {{ gt .startTime 0 }}
       endTime: {{ gt .endTime 0 }}
-      componentId: 5005
+      componentId: 5013
       isError: false
       spanType: Exit
-      peer: provider:8080
+      peer: sample-topic
       skipAnalysis: false
-      tags:
-      {{- contains .tags }}
-      - key: http.method
-        value: GET
-      - key: url
-        value: {{ .value }}
-      - key: status_code
-        value: '200'
-      {{- end }}
-    - operationName: function-test
+    - operationName: provider
       parentSpanId: -1
       spanId: 0
       spanLayer: FAAS
@@ -40,16 +31,12 @@ segmentItems:
       skipAnalysis: false
       tags:
       {{- contains .tags }}
-      - key: http.method
-        value: GET
-      - key: url
-        value: {{ .value }}
       - key: instance
-        value: function-test-vhct4
+        value: {{ .value }}
       - key: namespace
-        value: test
+        value: default
       - key: func
-        value: function-test
+        value: provider
       - key: layer
         value: faas
       - key: tag1
@@ -57,46 +44,58 @@ segmentItems:
       - key: tag2
         value: value2
       - key: runtime
-        value: Knative
+        value: Async
+      - key: component.type
+        value: bindings
     {{- end }}
   {{- end }}
 {{- end }}
-- serviceName: provider
+- serviceName: of
   segmentSize: {{ gt .segmentSize 0 }}
   segments:
   {{- contains .segments }}
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: /GET/helloserver
+    - operationName: of
       parentSpanId: -1
       spanId: 0
-      spanLayer: Http
+      spanLayer: FAAS
       startTime: {{ gt .startTime 0 }}
       endTime: {{ gt .endTime 0 }}
-      componentId: 5004
+      componentId: 5013
       isError: false
       spanType: Entry
       peer: ''
       skipAnalysis: false
       tags:
       {{- contains .tags }}
-      - key: http.method
-        value: GET
-      - key: url
-        value: 'provider:8080/helloserver'
-      - key: status_code
-        value: '200'
-      {{- end }}
+      - key: instance
+        value: {{ .value }}
+      - key: namespace
+        value: default
+      - key: func
+        value: of
+      - key: layer
+        value: faas
+      - key: tag1
+        value: value1
+      - key: tag2
+        value: value2
+      - key: runtime
+        value: Async
+      - key: component.type
+        value: bindings
+    {{- end }}
       refs:
         {{- contains .refs }}
-        - parentEndpoint: function-test
-          networkAddress: 'provider:8080'
+        - parentEndpoint: provider
+          networkAddress: 'sample-topic'
           refType: CrossProcess
           parentSpanId: 1
           parentTraceSegmentId: {{ notEmpty .parentTraceSegmentId }}
-          parentServiceInstance: function-test-vhct4
-          parentService: function-test
+          parentServiceInstance: {{ notEmpty .parentServiceInstance }}
+          parentService: provider
           traceId: {{ notEmpty .traceId }}
         {{- end}}
     {{- end }}

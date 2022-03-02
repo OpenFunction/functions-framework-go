@@ -3,7 +3,7 @@ module github.com/OpenFunction/functions-framework-go
 go 1.15
 
 require (
-	github.com/SkyAPM/go2sky v1.4.0
+	github.com/SkyAPM/go2sky v1.4.1-0.20220302064553-acee2ee29345
 	github.com/cloudevents/sdk-go/v2 v2.4.1
 	github.com/dapr/dapr v1.6.0
 	github.com/dapr/go-sdk v1.3.1

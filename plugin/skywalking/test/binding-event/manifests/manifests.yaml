@@ -1,0 +1,179 @@
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: sample-topic
+spec:
+  type: bindings.kafka
+  version: v1
+  metadata:
+    # Kafka broker connection setting
+    - name: brokers
+      value: dapr-kafka.kafka.svc:9092
+    # consumer configuration: topic and consumer group
+    - name: topics
+      value: sample
+    - name: consumerGroup
+      value: group1
+    # publisher configuration: topic
+    - name: publishTopic
+      value: sample
+    - name: authRequired
+      value: "false"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cron
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+    - name: schedule
+      value: "@every 5s"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: of
+  labels:
+    app: of
+spec:
+  selector:
+    matchLabels:
+      app: of
+  template:
+    metadata:
+      labels:
+        app: of
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "of"
+        dapr.io/app-port: "8080"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: of
+          image: skywalking_e2e_of:latest
+          ports:
+            - containerPort: 8080
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SW_AGENT_COLLECTOR_GET_AGENT_DYNAMIC_CONFIG_INTERVAL
+              value: "-1"
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "of",
+                  "version": "v1.0.0",
+                  "runtime": "Async",
+                  "port": "8080",
+                  "prePlugins": [],
+                  "postPlugins": [],
+                  "inputs": {
+                    "of": {
+                      "componentType": "bindings.kafka",
+                      "componentName": "sample-topic"
+                    }
+                  },
+                  "pluginsTracing": {
+                    "enable": true,
+                    "provider": {
+                      "name": "skywalking",
+                      "oapServer": "collector.default.svc:19876"
+                    },
+                    "tags": {
+                      "func": "function-test",
+                      "layer": "faas",
+                      "tag1": "value1",
+                      "tag2": "value2"
+                    },
+                    "baggage": {
+                      "CONSUMER_KEY": "of"
+                    }
+                  }
+                }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: provider
+  labels:
+    app: provider
+spec:
+  selector:
+    matchLabels:
+      app: provider
+  template:
+    metadata:
+      labels:
+        app: provider
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "provider"
+        dapr.io/app-port: "8081"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: provider
+          image: skywalking_e2e_provider:latest
+          ports:
+            - containerPort: 8081
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: SW_AGENT_COLLECTOR_GET_AGENT_DYNAMIC_CONFIG_INTERVAL
+              value: "-1"
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "provider",
+                  "version": "v1.0.0",
+                  "runtime": "Async",
+                  "port": "8081",
+                  "prePlugins": [],
+                  "postPlugins": [],
+                  "inputs": {
+                    "cron": {
+                      "componentType": "bindings.cron",
+                      "componentName": "cron"
+                    }
+                  },
+                  "outputs": {
+                    "sample-topic":  {
+                      "componentType": "bindings.kafka",
+                      "operation": "create",
+                      "componentName": "sample-topic"
+                    }
+                  },
+                  "pluginsTracing": {
+                    "enable": true,
+                    "provider": {
+                      "name": "skywalking",
+                      "oapServer": "collector.default.svc:19876"
+                    },
+                    "tags": {
+                      "func": "function-test",
+                      "layer": "faas",
+                      "tag1": "value1",
+                      "tag2": "value2"
+                    },
+                    "baggage": {
+                      "CONSUMER_KEY": "provider"
+                    }
+                  }
+                }

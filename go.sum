@@ -131,8 +131,8 @@ github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578/go.mod h1:uGdko
 github.com/Shopify/sarama v1.19.0/go.mod h1:FVkBWblsNy7DGZRfXLU0O9RCGt5g3g3yEuWXgklEdEo=
 github.com/Shopify/sarama v1.23.1/go.mod h1:XLH1GYJnLVE0XCr6KdJGVJRTwY30moWNJ4sERjXX6fs=
 github.com/Shopify/toxiproxy v2.1.4+incompatible/go.mod h1:OXgGpZ6Cli1/URJOF1DMxUHB2q5Ap20/P/eIdh4G0pI=
-github.com/SkyAPM/go2sky v1.4.0 h1:4425zOGAd6TQ2DXdUqyFmebxLdqkOFmdtLRQvDsZM7c=
-github.com/SkyAPM/go2sky v1.4.0/go.mod h1:O31qs9zF/NYcIqb2ZgAbGloOfhVLvhrxc0qNTqfzErM=
+github.com/SkyAPM/go2sky v1.4.1-0.20220302064553-acee2ee29345 h1:Hze7WbR05KIg2U4vojf9iGZ9L5EGZsWq1+IvK//mQ68=
+github.com/SkyAPM/go2sky v1.4.1-0.20220302064553-acee2ee29345/go.mod h1:O31qs9zF/NYcIqb2ZgAbGloOfhVLvhrxc0qNTqfzErM=
 github.com/StackExchange/wmi v0.0.0-20190523213315-cbe66965904d/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/StackExchange/wmi v0.0.0-20210224194228-fe8f1750fd46/go.mod h1:3eOhrUMpNV+6aFIbp5/iudMxNCF27Vw2OZgy4xEx0Fg=
 github.com/VividCortex/gohistogram v1.0.0/go.mod h1:Pf5mBqqDxYaXu3hDrrU+w6nw50o/4+TcAqDqk/vUH7g=

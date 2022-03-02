@@ -1,0 +1,58 @@
+setup:
+  env: kind
+  file: kind.yaml
+  steps:
+    - name: install dapr
+      command: |
+        dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
+        dapr init -k --log-as-json
+    - name: install helm
+      command: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    - name: install kafka
+      command: |
+        helm repo add bitnami https://charts.bitnami.com/bitnami
+        helm repo update
+        helm install dapr-kafka bitnami/kafka --wait -n kafka --create-namespace -f ./plugin/skywalking/test/script/kafka/kafka-non-persistence.yaml
+    - name: install mock collector
+      path: ../script/oap-mock/manifests.yaml
+      wait:
+        - namespace: default
+          resource: pod
+          for: condition=Ready
+    - name: build image
+      command: |
+        docker build -t skywalking_e2e_publish:latest -f plugin/skywalking/test/topic-event/docker/Dockerfile.publish .
+        kind load docker-image skywalking_e2e_publish:latest
+        docker build -t skywalking_e2e_subscribe:latest -f plugin/skywalking/test/topic-event/docker/Dockerfile.subscribe .
+        kind load docker-image skywalking_e2e_subscribe:latest
+    - name: setup manifests
+      path: manifests
+      wait:
+        - namespace: default
+          resource: pod
+          for: condition=Ready
+  kind:
+    expose-ports:
+      - namespace: default
+        resource: service/collector
+        port: 12800
+  timeout: 20m
+
+cleanup:
+  # always never success failure
+  on: success
+
+trigger:
+  action: ""
+
+verify:
+  # verify with retry strategy
+  retry:
+    # max retry count
+    count: 10
+    # the interval between two attempts, e.g. 10s, 1m.
+    interval: 10s
+  cases:
+    - query: curl http://${service_collector_host}:${service_collector_12800}/receiveData
+      expected: expected.data.yml

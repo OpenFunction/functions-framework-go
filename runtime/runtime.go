@@ -62,6 +62,7 @@ func NewRuntimeManager(funcContext ofctx.RuntimeContext, prePlugin []plugin.Plug
 }
 
 func (rm *RuntimeManager) init() {
+	rm.FuncContext.SetNativeContext(context.Background())
 	rm.pluginState = map[string]plugin.Plugin{}
 
 	var newPrePlugins []plugin.Plugin

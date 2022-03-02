@@ -18,20 +18,22 @@ func preSyncRequestLogic(ofCtx ofctx.RuntimeContext, tracer *go2sky.Tracer) erro
 	if err != nil {
 		return err
 	}
-	ofCtx.GetSyncRequest().Request = request.WithContext(nCtx)
+	ofCtx.GetSyncRequest().Request = request.WithContext(nCtx)              // HTTPFunction
+	ofCtx.SetNativeContext(go2sky.WithSpan(ofCtx.GetNativeContext(), span)) // OpenFunction
 
 	span.Tag(go2sky.TagHTTPMethod, request.Method)
 	span.Tag(go2sky.TagURL, fmt.Sprintf("%s%s", request.Host, request.URL.Path))
+	span.Tag(tagRuntime, string(ofctx.Knative))
 	setPublicAttrs(nCtx, ofCtx, span)
 	return nil
 }
 
 func postSyncRequestLogic(ctx ofctx.RuntimeContext) error {
-	request := ctx.GetSyncRequest().Request
-	span := go2sky.ActiveSpan(request.Context())
+	span := go2sky.ActiveSpan(ctx.GetNativeContext())
 	if span == nil {
 		return nil
 	}
+
 	defer span.End()
 
 	if ofctx.InternalError == ctx.GetOut().GetCode() {
