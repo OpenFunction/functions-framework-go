@@ -13,7 +13,7 @@ import (
 	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
 )
 
-func bindingsFunction(ofCtx ofctx.Context, in []byte) (ofctx.Out, error) {
+func pubsubFunction(ofCtx ofctx.Context, in []byte) (ofctx.Out, error) {
 	tracer := go2sky.GetGlobalTracer()
 	if tracer == nil {
 		klog.Warningf("go2sky is not enabled")
@@ -53,7 +53,7 @@ func main() {
 		"skywalking": &skywalking.PluginSkywalking{},
 	})
 
-	err = fwk.Register(ctx, bindingsFunction)
+	err = fwk.Register(ctx, pubsubFunction)
 	if err != nil {
 		klog.Fatal(err)
 	}

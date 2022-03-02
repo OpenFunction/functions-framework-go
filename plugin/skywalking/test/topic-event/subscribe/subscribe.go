@@ -14,9 +14,9 @@ import (
 
 func topicFunction(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
 	if in != nil {
-		log.Printf("binding - Data: %s", in)
+		log.Printf("pubsub - Data: %s", in)
 	} else {
-		log.Print("binding - Data: Received")
+		log.Print("pubsub - Data: Received")
 	}
 	return ctx.ReturnOnSuccess().WithData([]byte("hello there")), nil
 }

@@ -816,6 +816,9 @@ func ConvertUserDataToBytes(data interface{}) []byte {
 	if d, ok := data.([]byte); ok {
 		return d
 	}
+	if d, ok := data.(string); ok {
+		return []byte(d)
+	}
 	if d, err := json.Marshal(data); err != nil {
 		return nil
 	} else {
