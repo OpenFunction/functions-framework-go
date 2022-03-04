@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/dapr/go-sdk/service/common"
@@ -418,13 +419,23 @@ func (ctx *FunctionContext) InitDaprClientIfNil() {
 	}
 
 	if ctx.daprClient == nil {
+		var err error
 		ctx.mu.Lock()
 		defer ctx.mu.Unlock()
-		c, e := dapr.NewClientWithPort(clientGRPCPort)
-		if e != nil {
-			panic(e)
+
+		for attempts := 120; attempts > 0; attempts-- {
+			c, e := dapr.NewClientWithPort(clientGRPCPort)
+			if e == nil {
+				ctx.daprClient = c
+				break
+			}
+			err = e
+			time.Sleep(500 * time.Millisecond)
 		}
-		ctx.daprClient = c
+
+		if ctx.daprClient == nil {
+			klog.Errorf("failed to init dapr client: %v", err)
+		}
 	}
 }
 
