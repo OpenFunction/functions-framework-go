@@ -107,6 +107,9 @@ func (r *Runtime) RegisterOpenFunction(
 							return nil, nil
 						}
 					})
+					if funcErr == nil {
+						klog.Infof("registered bindings handler: %s", input.Uri)
+					}
 				case ofctx.OpenFuncTopic:
 					sub := &dapr.Subscription{
 						PubsubName: input.ComponentName,
@@ -136,6 +139,9 @@ func (r *Runtime) RegisterOpenFunction(
 							return false, nil
 						}
 					})
+					if funcErr == nil {
+						klog.Infof("registered pubsub handler: %s, topic: %s", input.ComponentName, input.Uri)
+					}
 				default:
 					return fmt.Errorf("invalid input type: %s", input.GetType())
 				}
