@@ -435,6 +435,7 @@ func (ctx *FunctionContext) InitDaprClientIfNil() {
 
 		if ctx.daprClient == nil {
 			klog.Errorf("failed to init dapr client: %v", err)
+			panic(err)
 		}
 	}
 }

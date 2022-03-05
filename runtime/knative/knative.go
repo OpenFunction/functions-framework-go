@@ -75,7 +75,6 @@ func (r *Runtime) RegisterOpenFunction(
 			return
 		}
 	})
-	ctx.DestroyDaprClient()
 	return nil
 }
 
