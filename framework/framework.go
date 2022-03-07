@@ -11,6 +11,7 @@ import (
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	plgExample "github.com/OpenFunction/functions-framework-go/plugin/plugin-example"
+	"github.com/OpenFunction/functions-framework-go/plugin/skywalking"
 	"github.com/OpenFunction/functions-framework-go/runtime"
 	"github.com/OpenFunction/functions-framework-go/runtime/async"
 	"github.com/OpenFunction/functions-framework-go/runtime/knative"
@@ -93,6 +94,7 @@ func (fwk *functionsFrameworkImpl) RegisterPlugins(customPlugins map[string]plug
 	// Register default plugins
 	fwk.pluginMap = map[string]plugin.Plugin{
 		plgExample.Name: plgExample.New(),
+		skywalking.Name: skywalking.New(),
 	}
 
 	// Register custom plugins
