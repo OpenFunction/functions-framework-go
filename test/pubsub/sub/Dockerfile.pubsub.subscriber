@@ -1,0 +1,12 @@
+FROM golang:1.16-alpine
+
+ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.cn,direct
+
+WORKDIR /ff
+
+ADD . /ff
+
+ENTRYPOINT ["go"]
+
+CMD ["run", "test/pubsub/sub/sub.go"]

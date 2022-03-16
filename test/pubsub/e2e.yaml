@@ -1,0 +1,59 @@
+setup:
+  env: kind
+  file: ../kind.yaml
+  steps:
+    - name: install dapr
+      command: |
+        dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
+        dapr init -k --log-as-json
+
+    - name: install helm
+      command: |
+        curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+    - name: install kafka operator
+      command: |
+        helm repo add strimzi https://strimzi.io/charts/
+        helm install kafka-operator -n default strimzi/strimzi-kafka-operator
+
+    - name: install kafka
+      path: ../kafka.yaml
+
+    - name: build and load image
+      command: |
+        docker build -t pubsub_e2e_publisher:latest -f test/pubsub/pub/Dockerfile.pubsub.publisher .
+        kind load docker-image pubsub_e2e_publisher:latest
+        docker build -t pubsub_e2e_subscriber:latest -f test/pubsub/sub/Dockerfile.pubsub.subscriber .
+        kind load docker-image pubsub_e2e_subscriber:latest
+
+    - name: setup manifests
+      path: manifests.yaml
+      wait:
+        - namespace: default
+          resource: pod
+          label-selector: app=pubsub-subscriber
+          for: condition=Ready
+        - namespace: default
+          resource: pod
+          label-selector: app=pubsub-publisher
+          for: condition=Ready
+
+  timeout: 30m
+
+cleanup:
+  # always never success failure
+  on: success
+
+trigger:
+  action: ""
+
+verify:
+  # verify with retry strategy
+  retry:
+    # max retry count
+    count: 60
+    # the interval between two attempts, e.g. 10s, 1m.
+    interval: 10s
+  cases:
+    - query: bash test/pubsub/verify.sh | yq
+      expected: expected.data.yaml

@@ -2,6 +2,7 @@ package plugin_example
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/fatih/structs"
@@ -80,6 +81,10 @@ func preHookLogic(ctx context.Context) context.Context {
 
 func postHookLogic(numA int64, numB int64) int64 {
 	sum := numA + numB
-	klog.Infof("the sum is: %d", sum)
+	result := map[string]int64{
+		"sum": sum,
+	}
+	resultBytes, _ := json.Marshal(result)
+	klog.Infof("plugin - Result: %s", resultBytes)
 	return sum
 }

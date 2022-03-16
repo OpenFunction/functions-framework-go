@@ -15,8 +15,8 @@ import (
 )
 
 const (
-	name    = "skywalking"
-	version = "v1"
+	Name    = "skywalking"
+	Version = "v1"
 
 	componentIDOpenFunction = 5013 // https://github.com/apache/skywalking/blob/master/oap-server/server-starter/src/main/resources/component-libraries.yml#L515
 )
@@ -75,6 +75,10 @@ func initGo2sky(ofCtx ofctx.RuntimeContext, p *PluginSkywalking) {
 
 var _ plugin.Plugin = &PluginSkywalking{}
 
+func New() *PluginSkywalking {
+	return &PluginSkywalking{}
+}
+
 type PluginSkywalking struct {
 	tracer *go2sky.Tracer
 }
@@ -84,11 +88,11 @@ func (p *PluginSkywalking) Init() plugin.Plugin {
 }
 
 func (p PluginSkywalking) Name() string {
-	return name
+	return Name
 }
 
 func (p PluginSkywalking) Version() string {
-	return version
+	return Version
 
 }
 

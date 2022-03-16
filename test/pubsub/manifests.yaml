@@ -1,0 +1,173 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-subscriber
+  labels:
+    app: pubsub-subscriber
+    case: pubsub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-subscriber
+      case: pubsub
+  template:
+    metadata:
+      labels:
+        app: pubsub-subscriber
+        case: pubsub
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "pubsub-subscriber"
+        dapr.io/app-port: "50003"
+        dapr.io/log-as-json: "true"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: sub
+          image: pubsub_e2e_subscriber:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "pubsub-subscriber",
+                  "version": "v1",
+                  "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
+                  "port": "50003",
+                  "prePlugins": ["plugin-custom", "plugin-example"],
+                  "postPlugins": ["plugin-custom", "plugin-example"],
+                  "inputs": {
+                    "pub": {
+                      "uri": "pubsub-topic",
+                      "componentName": "pubsub-subscriber",
+                      "componentType": "pubsub.kafka"
+                    }
+                  },
+                  "outputs": {},
+                  "runtime": "Async"
+                }
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              value: default
+          ports:
+            - containerPort: 50003
+              name: function-port
+              protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pubsub-publisher
+  labels:
+    app: pubsub-publisher
+    case: pubsub
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pubsub-publisher
+      case: pubsub
+  template:
+    metadata:
+      labels:
+        app: pubsub-publisher
+        case: pubsub
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "pubsub-publisher"
+        dapr.io/app-port: "50003"
+        dapr.io/log-as-json: "true"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: pub
+          image: pubsub_e2e_publisher:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "pubsub-publisher",
+                  "version": "v1",
+                  "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
+                  "port": "50003",
+                  "inputs": {
+                    "cron": {
+                      "componentName": "cron-for-pubsub",
+                      "componentType": "bindings.cron"
+                    }
+                  },
+                  "outputs": {
+                    "subscriber": {
+                      "uri": "pubsub-topic",
+                      "componentName": "pubsub-publisher",
+                      "componentType": "pubsub.kafka"
+                    }
+                  },
+                  "runtime": "Async"
+                }
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              value: default
+          ports:
+            - containerPort: 50003
+              name: function-port
+              protocol: TCP
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-subscriber
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "kafka-server-kafka-brokers:9092"
+    - name: consumerGroup
+      value: "pubsub-subscriber"
+    - name: authRequired
+      value: "false"
+    - name: disableTls
+      value: "true"
+    - name: authType
+      value: "none"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: pubsub-publisher
+spec:
+  type: pubsub.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "kafka-server-kafka-brokers:9092"
+    - name: consumerGroup
+      value: "pubsub-publisher"
+    - name: authRequired
+      value: "false"
+    - name: disableTls
+      value: "true"
+    - name: authType
+      value: "none"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cron-for-pubsub
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+    - name: schedule
+      value: "@every 2s"

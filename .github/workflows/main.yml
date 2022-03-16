@@ -1,0 +1,59 @@
+name: Main CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Set up Go
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.15
+
+    - name: Build
+      run: go build -v ./...
+
+    - name: Test
+      run: go test -v ./...
+
+  e2e_test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    name: E2E Tests
+    strategy:
+      matrix:
+        case:
+          - name: Bindings e2e test
+            e2e: "test/bindings/e2e.yaml"
+          - name: Pubsub e2e test
+            e2e: "test/pubsub/e2e.yaml"
+          - name: Sync HTTP e2e test
+            e2e: "test/sync-http/e2e.yaml"
+          - name: Sync Cloudevent e2e test
+            e2e: "test/sync-cloudevent/e2e.yaml"
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: install yq
+        env:
+          VERSION: v4.22.1
+          BINARY: yq_linux_amd64
+        run: |
+          wget https://github.com/mikefarah/yq/releases/download/${VERSION}/${BINARY}.tar.gz -O - |\
+          tar xz && mv ${BINARY} /usr/local/bin/yq
+
+      - uses: apache/skywalking-infra-e2e@main
+        with:
+          e2e-file: ${{matrix.case.e2e}}
+
+      - name: Cleanup
+        if: ${{ failure() }}
+        run: e2e cleanup -c ${{matrix.case.e2e}}

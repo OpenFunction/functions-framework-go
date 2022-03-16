@@ -1,0 +1,172 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bindings-target
+  labels:
+    app: bindings-target
+    case: bindings
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bindings-target
+      case: bindings
+  template:
+    metadata:
+      labels:
+        app: bindings-target
+        case: bindings
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "bindings-target"
+        dapr.io/app-port: "50003"
+        dapr.io/log-as-json: "true"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: target
+          image: bindings_e2e_target:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "bindings-target",
+                  "version": "v1",
+                  "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
+                  "port": "50003",
+                  "prePlugins": ["plugin-custom", "plugin-example"],
+                  "postPlugins": ["plugin-custom", "plugin-example"],
+                  "inputs": {
+                    "sender": {
+                      "componentName": "bindings-target",
+                      "componentType": "bindings.kafka"
+                    }
+                  },
+                  "outputs": {},
+                  "runtime": "Async"
+                }
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              value: default
+          ports:
+            - containerPort: 50003
+              name: function-port
+              protocol: TCP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bindings-sender
+  labels:
+    app: bindings-sender
+    case: bindings
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bindings-sender
+      case: bindings
+  template:
+    metadata:
+      labels:
+        app: bindings-sender
+        case: bindings
+      annotations:
+        dapr.io/enabled: "true"
+        dapr.io/app-id: "bindings-sender"
+        dapr.io/app-port: "50003"
+        dapr.io/log-as-json: "true"
+        dapr.io/app-protocol: "grpc"
+    spec:
+      containers:
+        - name: sender
+          image: bindings_e2e_sender:latest
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: FUNC_CONTEXT
+              value: |
+                {
+                  "name": "bindings-sender",
+                  "version": "v1",
+                  "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
+                  "port": "50003",
+                  "inputs": {
+                    "cron": {
+                      "componentName": "cron-for-bindings",
+                      "componentType": "bindings.cron"
+                    }
+                  },
+                  "outputs": {
+                    "target": {
+                      "componentName": "bindings-sender",
+                      "componentType": "bindings.kafka",
+                      "operation": "create"
+                    }
+                  },
+                  "runtime": "Async"
+                }
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.name
+            - name: POD_NAMESPACE
+              value: default
+          ports:
+            - containerPort: 50003
+              name: function-port
+              protocol: TCP
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: bindings-target
+spec:
+  type: bindings.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "kafka-server-kafka-brokers:9092"
+    - name: consumerGroup
+      value: "bindings-target"
+    - name: authRequired
+      value: "false"
+    - name: topics
+      value: "bindings-topic"
+    - name: publishTopic
+      value: "bindings-topic"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: bindings-sender
+spec:
+  type: bindings.kafka
+  version: v1
+  metadata:
+    - name: brokers
+      value: "kafka-server-kafka-brokers:9092"
+    - name: consumerGroup
+      value: "bindings-sender"
+    - name: authRequired
+      value: "false"
+    - name: topics
+      value: "bindings-topic"
+    - name: publishTopic
+      value: "bindings-topic"
+---
+apiVersion: dapr.io/v1alpha1
+kind: Component
+metadata:
+  name: cron-for-bindings
+spec:
+  type: bindings.cron
+  version: v1
+  metadata:
+    - name: schedule
+      value: "@every 2s"
