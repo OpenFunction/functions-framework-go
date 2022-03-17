@@ -299,7 +299,7 @@ type FunctionOut struct {
 }
 
 type PluginsTracing struct {
-	Enable   bool              `json:"enable" yaml:"enable"`
+	Enabled  bool              `json:"enabled" yaml:"enabled"`
 	Provider *TracingProvider  `json:"provider" yaml:"provider"`
 	Tags     map[string]string `json:"tags,omitempty" yaml:"tags,omitempty"`
 	Baggage  map[string]string `json:"baggage" yaml:"baggage"`
@@ -622,7 +622,7 @@ func (o *FunctionOut) WithData(data []byte) *FunctionOut {
 }
 
 func (tracing *PluginsTracing) IsEnabled() bool {
-	return tracing.Enable
+	return tracing.Enabled
 }
 
 func (tracing *PluginsTracing) ProviderName() string {
@@ -752,7 +752,7 @@ func parseContext() (*FunctionContext, error) {
 		ctx.podNamespace = podNamespace
 	}
 
-	if ctx.PluginsTracing != nil && ctx.PluginsTracing.Enable {
+	if ctx.PluginsTracing != nil && ctx.PluginsTracing.IsEnabled() {
 		if ctx.PluginsTracing.Provider != nil && ctx.PluginsTracing.Provider.Name != "" {
 			switch ctx.PluginsTracing.Provider.Name {
 			case TracingProviderSkywalking, TracingProviderOpentelemetry:

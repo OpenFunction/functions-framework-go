@@ -54,7 +54,7 @@ var (
   "prePlugins": ["plgA", "plgB", "plgC"],
   "postPlugins": ["plgC", "plgA", "plgB"],
   "pluginsTracing": {
-    "enable": true,
+    "enabled": true,
     "provider": {
       "name": "skywalking",
       "oapServer": "localhost:xxx"
@@ -79,7 +79,7 @@ var (
   "prePlugins": ["plgA", "plgB", "plgC"],
   "postPlugins": ["plgC", "plgA", "plgB"],
   "pluginsTracing": {
-    "enable": true,
+    "enabled": true,
     "provider": {
       "name": "",
       "oapServer": "localhost:xxx"
@@ -94,7 +94,7 @@ var (
   "prePlugins": ["plgA", "plgB", "plgC"],
   "postPlugins": ["plgC", "plgA", "plgB"],
   "pluginsTracing": {
-    "enable": true,
+    "enabled": true,
     "provider": {
       "name": "wrongProvider",
       "oapServer": "localhost:xxx"
