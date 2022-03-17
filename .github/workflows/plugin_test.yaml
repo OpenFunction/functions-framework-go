@@ -2,9 +2,15 @@ name: PluginsTest
 
 on:
   pull_request:
-  push:
-    branches:
-      - main
+    branches: [ main ]
+    paths:
+      - '.github/workflows/**'
+      - 'context/**'
+      - 'plugin/**'
+      - 'framework/**'
+      - 'runtime/**'
+      - 'test/**'
+      - 'go.mod'
 
 jobs:
   Plugin-SkyWalking:

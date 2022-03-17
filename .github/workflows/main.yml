@@ -1,10 +1,16 @@
 name: Main CI
 
 on:
-  push:
-    branches: [ main ]
   pull_request:
     branches: [ main ]
+    paths:
+      - '.github/workflows/**'
+      - 'context/**'
+      - 'plugin/**'
+      - 'framework/**'
+      - 'runtime/**'
+      - 'test/**'
+      - 'go.mod'
 
 jobs:
 
