@@ -216,6 +216,9 @@ type TracingConfig interface {
 	// ProviderOapServer returns the oap server of the tracing provider.
 	ProviderOapServer() string
 
+	// ProviderAuth returns the auth string of the tracing provider.
+	ProviderAuth() string
+
 	// GetTags returns the tags of the tracing configuration.
 	GetTags() map[string]string
 
@@ -308,6 +311,7 @@ type PluginsTracing struct {
 type TracingProvider struct {
 	Name      string `json:"name" yaml:"name"`
 	OapServer string `json:"oapServer" yaml:"oapServer"`
+	Auth      string `json:"auth,omitempty"  yaml:"auth"`
 }
 
 type ResponseWriterWrapper struct {
@@ -636,6 +640,14 @@ func (tracing *PluginsTracing) ProviderName() string {
 func (tracing *PluginsTracing) ProviderOapServer() string {
 	if tracing.Provider != nil {
 		return tracing.Provider.OapServer
+	} else {
+		return ""
+	}
+}
+
+func (tracing *PluginsTracing) ProviderAuth() string {
+	if tracing.Provider != nil {
+		return tracing.Provider.Auth
 	} else {
 		return ""
 	}
