@@ -12,11 +12,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/SkyAPM/go2sky"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	dapr "github.com/dapr/go-sdk/client"
 	"github.com/dapr/go-sdk/service/common"
 	"k8s.io/klog/v2"
-
-	dapr "github.com/dapr/go-sdk/client"
+	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
 )
 
 var (
@@ -54,6 +55,7 @@ const (
 	SelfHostMode                              = "self-host"
 	TestModeOn                                = "on"
 	innerEventTypePrefix                      = "io.openfunction.function"
+	tracingProviderSkywalking                 = "skywalking"
 )
 
 type Runtime string
@@ -154,6 +156,9 @@ type RuntimeContext interface {
 
 	// GetPluginsTracingCfg returns the TracingConfig interface.
 	GetPluginsTracingCfg() TracingConfig
+
+	// HasPluginsTracingCfg returns nil if there is no TracingConfig.
+	HasPluginsTracingCfg() bool
 }
 
 type Context interface {
@@ -361,6 +366,12 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 		ie := NewInnerEvent(ctx)
 		ie.MergeMetadata(ctx.GetInnerEvent())
 		ie.SetUserData(data)
+
+		// Set the exit span for tracing
+		if err := setExitSpan(ctx, ie, outputName); err != nil {
+			klog.Warningf("failed to set exit span: %v", err)
+		}
+
 		payload = ie.GetCloudEventJSON()
 	}
 
@@ -571,6 +582,10 @@ func (ctx *FunctionContext) GetInnerEvent() InnerEvent {
 
 func (ctx *FunctionContext) GetPluginsTracingCfg() TracingConfig {
 	return ctx.PluginsTracing
+}
+
+func (ctx *FunctionContext) HasPluginsTracingCfg() bool {
+	return ctx.PluginsTracing != nil
 }
 
 func (ctx *FunctionContext) WithOut(out *FunctionOut) RuntimeContext {
@@ -822,6 +837,35 @@ func getBuildingBlockType(componentType string) (ResourceType, error) {
 		}
 	}
 	return "", errors.New("invalid component type")
+}
+
+func setExitSpan(ctx *FunctionContext, innerEvent InnerEvent, target string) error {
+	if !ctx.HasPluginsTracingCfg() || !ctx.GetPluginsTracingCfg().IsEnabled() {
+		return nil
+	}
+
+	switch ctx.GetPluginsTracingCfg().ProviderName() {
+	case tracingProviderSkywalking:
+		tracer := go2sky.GetGlobalTracer()
+		if tracer == nil {
+			return errors.New("skywalking is not enabled")
+		}
+
+		span, err := tracer.CreateExitSpan(ctx.GetNativeContext(), ctx.GetName(), target, func(headerKey, headerValue string) error {
+			innerEvent.SetMetadata(headerKey, headerValue)
+			return nil
+		})
+		if err != nil {
+			return err
+		}
+		defer span.End()
+
+		span.SetSpanLayer(agentv3.SpanLayer_FAAS)
+		span.SetComponent(5013)
+		return nil
+	default:
+		return nil
+	}
 }
 
 func ConvertUserDataToBytes(data interface{}) []byte {

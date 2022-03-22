@@ -7,7 +7,7 @@ segmentItems:
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: publish-topic
+    - operationName: publish
       parentSpanId: 0
       spanId: 1
       spanLayer: FAAS
