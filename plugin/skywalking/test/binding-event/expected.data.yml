@@ -7,7 +7,7 @@ segmentItems:
   - segmentId: {{ notEmpty .segmentId }}
     spans:
     {{- contains .spans }}
-    - operationName: sample-topic
+    - operationName: provider
       parentSpanId: 0
       spanId: 1
       spanLayer: FAAS
