@@ -57,7 +57,7 @@ func (k klogWrapper) Errorf(format string, args ...interface{}) {
 
 func initGo2sky(ofCtx ofctx.RuntimeContext, p *PluginSkywalking) {
 	initGo2skyOnce.Do(func() {
-		r, err := reporter.NewGRPCReporter(ofCtx.GetPluginsTracingCfg().ProviderOapServer(), reporter.WithLog(&klogWrapper{}))
+		r, err := reporter.NewGRPCReporter(ofCtx.GetPluginsTracingCfg().ProviderOapServer(), reporter.WithFAASLayer(), reporter.WithLog(&klogWrapper{}))
 		if err != nil {
 			klog.Errorf("new go2sky grpc reporter error\n", err)
 			return
