@@ -12,6 +12,7 @@ import (
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/internal/functions"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	"github.com/OpenFunction/functions-framework-go/runtime"
 )
@@ -26,8 +27,8 @@ const (
 
 type Runtime struct {
 	port    string
-	handler *http.ServeMux
 	pattern string
+	handler *http.ServeMux
 }
 
 func NewKnativeRuntime(port string, pattern string) *Runtime {
@@ -36,8 +37,8 @@ func NewKnativeRuntime(port string, pattern string) *Runtime {
 	}
 	return &Runtime{
 		port:    port,
-		handler: http.DefaultServeMux,
 		pattern: pattern,
+		handler: http.DefaultServeMux,
 	}
 }
 
@@ -51,17 +52,17 @@ func (r *Runtime) RegisterOpenFunction(
 	ctx ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(ofctx.Context, []byte) (ofctx.Out, error),
+	rf *functions.RegisteredFunction,
 ) error {
 	// Initialize dapr client if it is nil
 	ctx.InitDaprClientIfNil()
 
 	// Register the synchronous function (based on Knaitve runtime)
-	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
+	r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 		rm.FuncContext.SetSyncRequest(w, r)
 		defer RecoverPanicHTTP(w, "Function panic")
-		rm.FunctionRunWrapperWithHooks(fn)
+		rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 		switch rm.FuncOut.GetCode() {
 		case ofctx.Success:
@@ -82,13 +83,13 @@ func (r *Runtime) RegisterHTTPFunction(
 	ctx ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(http.ResponseWriter, *http.Request),
+	rf *functions.RegisteredFunction,
 ) error {
-	r.handler.HandleFunc(r.pattern, func(w http.ResponseWriter, r *http.Request) {
+	r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 		rm.FuncContext.SetSyncRequest(w, r)
 		defer RecoverPanicHTTP(w, "Function panic")
-		rm.FunctionRunWrapperWithHooks(fn)
+		rm.FunctionRunWrapperWithHooks(rf.GetHTTPFunction())
 	})
 	return nil
 }
@@ -98,7 +99,7 @@ func (r *Runtime) RegisterCloudEventFunction(
 	funcContext ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(context.Context, cloudevents.Event) error,
+	rf *functions.RegisteredFunction,
 ) error {
 	p, err := cloudevents.NewHTTP()
 	if err != nil {
@@ -109,7 +110,7 @@ func (r *Runtime) RegisterCloudEventFunction(
 	handleFn, err := cloudevents.NewHTTPReceiveHandler(ctx, p, func(ctx context.Context, ce cloudevents.Event) error {
 		rm := runtime.NewRuntimeManager(funcContext, prePlugins, postPlugins)
 		rm.FuncContext.SetEvent("", &ce)
-		rm.FunctionRunWrapperWithHooks(fn)
+		rm.FunctionRunWrapperWithHooks(rf.GetCloudEventFunction())
 		return rm.FuncContext.GetError()
 	})
 
@@ -117,7 +118,7 @@ func (r *Runtime) RegisterCloudEventFunction(
 		klog.Errorf("failed to create handler: %v\n", err)
 		return err
 	}
-	r.handler.Handle(r.pattern, handleFn)
+	r.handler.Handle(rf.GetPath(), handleFn)
 	return nil
 }
 
