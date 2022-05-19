@@ -1,6 +1,6 @@
 setup:
   env: kind
-  file: ../kind.yaml
+  file: ../../kind.yaml
   steps:
     - name: build and load image
       command: |
