@@ -20,6 +20,7 @@ import (
 	"testing"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/internal/functions"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 )
 
@@ -34,7 +35,7 @@ func TestRegisterHTTP(t *testing.T) {
 		t.Fatalf("Expected function to be registered")
 	}
 	if fn.GetName() != "httpfn" {
-		t.Errorf("Expected function name to be 'httpfn', got %s", fn.Name)
+		t.Errorf("Expected function name to be 'httpfn', got %s", fn.GetName())
 	}
 }
 
@@ -49,7 +50,7 @@ func TestRegisterCloudEvent(t *testing.T) {
 		t.Fatalf("Expected function to be registered")
 	}
 	if fn.GetName() != "cefn" {
-		t.Errorf("Expected function name to be 'cefn', got %s", fn.Name)
+		t.Errorf("Expected function name to be 'cefn', got %s", fn.GetName())
 	}
 }
 
@@ -64,7 +65,7 @@ func TestRegisterOpenFunction(t *testing.T) {
 		t.Fatalf("Expected function to be registered")
 	}
 	if fn.GetName() != "ofnfn" {
-		t.Errorf("Expected function name to be 'ofnfn', got %s", fn.Name)
+		t.Errorf("Expected function name to be 'ofnfn', got %s", fn.GetName())
 	}
 }
 
@@ -72,22 +73,22 @@ func TestRegisterMultipleFunctions(t *testing.T) {
 	registry := New()
 	if err := registry.RegisterHTTP("multifn1", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello World!")
-	}); err != nil {
+	}, functions.WithFunctionPath("/multifn1")); err != nil {
 		t.Error("Expected \"multifn1\" function to be registered")
 	}
 	if err := registry.RegisterHTTP("multifn2", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello World 2!")
-	}); err != nil {
+	}, functions.WithFunctionPath("/multifn2")); err != nil {
 		t.Error("Expected \"multifn2\" function to be registered")
 	}
 	if err := registry.RegisterCloudEvent("multifn3", func(context.Context, cloudevents.Event) error {
 		return nil
-	}); err != nil {
+	}, functions.WithFunctionPath("/multifn3")); err != nil {
 		t.Error("Expected \"multifn3\" function to be registered")
 	}
 	if err := registry.RegisterOpenFunction("multifn4", func(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
 		return ctx.ReturnOnSuccess(), nil
-	}); err != nil {
+	}, functions.WithFunctionPath("/multifn4")); err != nil {
 		t.Error("Expected \"multifn4\" function to be registered")
 	}
 }

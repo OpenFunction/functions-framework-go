@@ -8,6 +8,8 @@ on:
       - 'context/**'
       - 'plugin/**'
       - 'framework/**'
+      - 'functions/**'
+      - 'internal/**'
       - 'runtime/**'
       - 'test/**'
       - 'go.mod'

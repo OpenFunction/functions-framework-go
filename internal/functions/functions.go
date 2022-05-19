@@ -22,7 +22,7 @@ const (
 // registered with the registry.
 type RegisteredFunction struct {
 	functionName   string                                         // The name of the function
-	functionPath   string                                         // The path of the function
+	functionPath   string                                         // The path of the function, default is '/'
 	functionType   string                                         // The type of the function, not using it currently
 	httpFn         func(http.ResponseWriter, *http.Request)       // Optional: The user's HTTP function
 	cloudEventFn   func(context.Context, cloudevents.Event) error // Optional: The user's CloudEvent function
@@ -47,6 +47,15 @@ func (rf *RegisteredFunction) setup(options ...FunctionOption) error {
 			setter(rf)
 		}
 	}
+
+	if rf.GetName() == "" {
+		return errors.New("No function name is registered")
+	}
+
+	if rf.GetFunctionType() == "" {
+		return errors.New("No function is registered")
+	}
+
 	return nil
 }
 
