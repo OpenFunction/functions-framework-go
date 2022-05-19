@@ -66,7 +66,7 @@ func NewFramework() (*functionsFrameworkImpl, error) {
 
 func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{}) error {
 	if fnHTTP, ok := fn.(func(http.ResponseWriter, *http.Request)); ok {
-		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithHTTP(fnHTTP))
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithHTTP(fnHTTP), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
 		if err != nil {
 			klog.Errorf("failed to register function: %v", err)
 		}
@@ -75,7 +75,7 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 			return err
 		}
 	} else if fnOpenFunction, ok := fn.(func(ofctx.Context, []byte) (ofctx.Out, error)); ok {
-		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithOpenFunction(fnOpenFunction))
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithOpenFunction(fnOpenFunction), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
 		if err != nil {
 			klog.Errorf("failed to register function: %v", err)
 		}
@@ -84,7 +84,7 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 			return err
 		}
 	} else if fnCloudEvent, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
-		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithCloudEvent(fnCloudEvent))
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithCloudEvent(fnCloudEvent), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
 		if err != nil {
 			klog.Errorf("failed to register function: %v", err)
 		}
