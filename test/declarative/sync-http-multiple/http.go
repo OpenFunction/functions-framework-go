@@ -23,7 +23,7 @@ func helloWorld(w http.ResponseWriter, r *http.Request) {
 
 func foo(w http.ResponseWriter, r *http.Request) {
 	response := map[string]string{
-		"hello": "bar",
+		"hello": "foo",
 	}
 	responseBytes, _ := json.Marshal(response)
 	w.Header().Set("Content-type", "application/json")

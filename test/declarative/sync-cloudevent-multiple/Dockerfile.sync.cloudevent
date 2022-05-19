@@ -9,4 +9,4 @@ ADD . /ff
 
 ENTRYPOINT ["go"]
 
-CMD ["run", "test/declarative/sync-cloudevent-multiple/cloudevent.go"]
+CMD ["run", "test/declarative/sync-cloudevent-multiple/main.go", "test/declarative/sync-cloudevent-multiple/cloudevent.go"]

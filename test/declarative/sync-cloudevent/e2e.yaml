@@ -42,5 +42,5 @@ verify:
     # the interval between two attempts, e.g. 10s, 1m.
     interval: 10s
   cases:
-    - query: bash test/declarative/sync-cloudevent/verify.sh 127.0.0.1 80 | yq
+    - query: bash test/declarative/sync-cloudevent/verify.sh 127.0.0.1:80 | yq
       expected: expected.data.yaml
