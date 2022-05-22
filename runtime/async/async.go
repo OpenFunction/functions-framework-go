@@ -4,27 +4,34 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"os"
 	"strings"
 
-	cloudevents "github.com/cloudevents/sdk-go/v2"
 	dapr "github.com/dapr/go-sdk/service/common"
 	daprd "github.com/dapr/go-sdk/service/grpc"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/internal/functions"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	"github.com/OpenFunction/functions-framework-go/runtime"
 )
 
+const (
+	defaultPattern = "/"
+)
+
 type Runtime struct {
 	port       string
+	pattern    string
 	handler    dapr.Service
 	grpcHander *FakeServer
 }
 
-func NewAsyncRuntime(port string) (*Runtime, error) {
+func NewAsyncRuntime(port string, pattern string) (*Runtime, error) {
+	if pattern == "" {
+		pattern = defaultPattern
+	}
 	if testMode := os.Getenv(ofctx.TestModeEnvName); testMode == ofctx.TestModeOn {
 		handler, grpcHandler, err := NewFakeService(fmt.Sprintf(":%s", port))
 		if err != nil {
@@ -33,6 +40,7 @@ func NewAsyncRuntime(port string) (*Runtime, error) {
 		}
 		return &Runtime{
 			port:       port,
+			pattern:    pattern,
 			handler:    handler,
 			grpcHander: grpcHandler,
 		}, nil
@@ -44,6 +52,7 @@ func NewAsyncRuntime(port string) (*Runtime, error) {
 	}
 	return &Runtime{
 		port:       port,
+		pattern:    pattern,
 		handler:    handler,
 		grpcHander: nil,
 	}, nil
@@ -59,7 +68,7 @@ func (r *Runtime) RegisterHTTPFunction(
 	ctx ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(http.ResponseWriter, *http.Request),
+	rf *functions.RegisteredFunction,
 ) error {
 	return errors.New("async runtime cannot register http function")
 }
@@ -69,7 +78,7 @@ func (r *Runtime) RegisterCloudEventFunction(
 	funcContext ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(context.Context, cloudevents.Event) error,
+	rf *functions.RegisteredFunction,
 ) error {
 	return errors.New("async runtime cannot register cloudevent function")
 }
@@ -78,7 +87,7 @@ func (r *Runtime) RegisterOpenFunction(
 	ctx ofctx.RuntimeContext,
 	prePlugins []plugin.Plugin,
 	postPlugins []plugin.Plugin,
-	fn func(ofctx.Context, []byte) (ofctx.Out, error),
+	rf *functions.RegisteredFunction,
 ) error {
 	// Register the asynchronous functions (based on the Dapr runtime)
 	return func(f func(ofctx.Context, []byte) (ofctx.Out, error)) error {
@@ -96,7 +105,7 @@ func (r *Runtime) RegisterOpenFunction(
 					funcErr = r.handler.AddBindingInvocationHandler(input.Uri, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 						rm.FuncContext.SetEvent(name, in)
-						rm.FunctionRunWrapperWithHooks(fn)
+						rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 						switch rm.FuncOut.GetCode() {
 						case ofctx.Success:
@@ -118,7 +127,7 @@ func (r *Runtime) RegisterOpenFunction(
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 						rm.FuncContext.SetEvent(name, e)
-						rm.FunctionRunWrapperWithHooks(fn)
+						rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 						switch rm.FuncOut.GetCode() {
 						case ofctx.Success:
@@ -160,7 +169,7 @@ func (r *Runtime) RegisterOpenFunction(
 		err := errors.New("no inputs defined for the function")
 		klog.Errorf("failed to register function: %v\n", err)
 		return err
-	}(fn)
+	}(rf.GetOpenFunctionFunction())
 }
 
 func (r *Runtime) Name() ofctx.Runtime {

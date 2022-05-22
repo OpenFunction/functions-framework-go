@@ -9,6 +9,7 @@ import (
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/internal/functions"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 )
 
@@ -18,20 +19,20 @@ type Interface interface {
 		ctx ofctx.RuntimeContext,
 		prePlugins []plugin.Plugin,
 		postPlugins []plugin.Plugin,
-		fn func(http.ResponseWriter, *http.Request),
+		rf *functions.RegisteredFunction,
 	) error
 	RegisterOpenFunction(
 		ctx ofctx.RuntimeContext,
 		prePlugins []plugin.Plugin,
 		postPlugins []plugin.Plugin,
-		fn func(ofctx.Context, []byte) (ofctx.Out, error),
+		rf *functions.RegisteredFunction,
 	) error
 	RegisterCloudEventFunction(
 		ctx context.Context,
 		funcContex ofctx.RuntimeContext,
 		prePlugins []plugin.Plugin,
 		postPlugins []plugin.Plugin,
-		fn func(context.Context, cloudevents.Event) error,
+		rf *functions.RegisteredFunction,
 	) error
 	Name() ofctx.Runtime
 	GetHandler() interface{}

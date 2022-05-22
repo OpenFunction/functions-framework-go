@@ -48,6 +48,7 @@ const (
 	Success                                   = 200
 	InternalError                             = 500
 	defaultPort                               = "8080"
+	defaultHttpPattern                        = "/"
 	daprSidecarGRPCPort                       = "50001"
 	TracingProviderSkywalking                 = "skywalking"
 	TracingProviderOpentelemetry              = "opentelemetry"
@@ -794,6 +795,10 @@ func parseContext() (*FunctionContext, error) {
 		if _, err := strconv.Atoi(ctx.Port); err != nil {
 			return nil, fmt.Errorf("error parsing port: %s", err.Error())
 		}
+	}
+
+	if ctx.HttpPattern == "" {
+		ctx.HttpPattern = defaultHttpPattern
 	}
 
 	// When using self-hosted mode, configure the client port via env,

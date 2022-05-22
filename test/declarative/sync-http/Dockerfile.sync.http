@@ -1,0 +1,12 @@
+FROM golang:1.16-alpine
+
+ENV GO111MODULE=on
+ENV GOPROXY=https://goproxy.cn,direct
+
+WORKDIR /ff
+
+ADD . /ff
+
+ENTRYPOINT ["go"]
+
+CMD ["run", "test/declarative/sync-http/main.go", "test/declarative/sync-http/http.go"]

@@ -4,11 +4,14 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"os"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/internal/functions"
+	"github.com/OpenFunction/functions-framework-go/internal/registry"
 	"github.com/OpenFunction/functions-framework-go/plugin"
 	plgExample "github.com/OpenFunction/functions-framework-go/plugin/plugin-example"
 	"github.com/OpenFunction/functions-framework-go/plugin/skywalking"
@@ -23,6 +26,7 @@ type functionsFrameworkImpl struct {
 	postPlugins []plugin.Plugin
 	pluginMap   map[string]plugin.Plugin
 	runtime     runtime.Interface
+	registry    *registry.Registry
 }
 
 // Framework is the interface for the function conversion.
@@ -35,6 +39,9 @@ type Framework interface {
 
 func NewFramework() (*functionsFrameworkImpl, error) {
 	fwk := &functionsFrameworkImpl{}
+
+	// Set the function registry
+	fwk.registry = registry.Default()
 
 	// Parse OpenFunction FunctionContext
 	if ctx, err := ofctx.GetRuntimeContext(); err != nil {
@@ -59,17 +66,29 @@ func NewFramework() (*functionsFrameworkImpl, error) {
 
 func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{}) error {
 	if fnHTTP, ok := fn.(func(http.ResponseWriter, *http.Request)); ok {
-		if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnHTTP); err != nil {
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithHTTP(fnHTTP), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
+		if err != nil {
+			klog.Errorf("failed to register function: %v", err)
+		}
+		if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
 	} else if fnOpenFunction, ok := fn.(func(ofctx.Context, []byte) (ofctx.Out, error)); ok {
-		if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnOpenFunction); err != nil {
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithOpenFunction(fnOpenFunction), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
+		if err != nil {
+			klog.Errorf("failed to register function: %v", err)
+		}
+		if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
 	} else if fnCloudEvent, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
-		if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.prePlugins, fwk.postPlugins, fnCloudEvent); err != nil {
+		rf, err := functions.New(functions.WithFunctionName(fwk.funcContext.GetName()), functions.WithCloudEvent(fnCloudEvent), functions.WithFunctionPath(fwk.funcContext.GetHttpPattern()))
+		if err != nil {
+			klog.Errorf("failed to register function: %v", err)
+		}
+		if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 			klog.Errorf("failed to register function: %v", err)
 			return err
 		}
@@ -82,6 +101,56 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 }
 
 func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
+
+	target := os.Getenv("FUNCTION_TARGET")
+
+	// if FUNCTION_TARGET is provided
+	if len(target) > 0 {
+		if fn, ok := fwk.registry.GetRegisteredFunction(target); ok {
+			klog.Infof("registering function: %s on path: %s", target, fn.GetPath())
+			switch fn.GetFunctionType() {
+			case functions.HTTPType:
+				fwk.Register(ctx, fn.GetHTTPFunction())
+			case functions.CloudEventType:
+				fwk.Register(ctx, fn.GetCloudEventFunction())
+			case functions.OpenFunctionType:
+				fwk.Register(ctx, fn.GetOpenFunctionFunction())
+			}
+		} else {
+			klog.Errorf("function not found: %s", target)
+		}
+	} else {
+		// if FUNCTION_TARGET is not provided but user uses declarative function, by default all registered functions will be deployed.
+		funcNames := fwk.registry.GetFunctionNames()
+		if len(funcNames) > 1 && fwk.funcContext.GetRuntime() == ofctx.Async {
+			return errors.New("only one function is allowed in async runtime")
+		} else if len(funcNames) > 0 {
+			klog.Info("no 'FUNCTION_TARGET' is provided, register all the functions in the registry")
+			for _, name := range funcNames {
+				if rf, ok := fwk.registry.GetRegisteredFunction(name); ok {
+					klog.Infof("registering function: %s on path: %s", rf.GetName(), rf.GetPath())
+					switch rf.GetFunctionType() {
+					case functions.HTTPType:
+						if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+							klog.Errorf("failed to register function: %v", err)
+							return err
+						}
+					case functions.CloudEventType:
+						if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+							klog.Errorf("failed to register function: %v", err)
+							return err
+						}
+					case functions.OpenFunctionType:
+						if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+							klog.Errorf("failed to register function: %v", err)
+							return err
+						}
+					}
+				}
+			}
+		}
+	}
+
 	err := fwk.runtime.Start(ctx)
 	if err != nil {
 		klog.Error("failed to start runtime service")
@@ -136,13 +205,12 @@ func createRuntime(fwk *functionsFrameworkImpl) error {
 	rt := fwk.funcContext.GetRuntime()
 	port := fwk.funcContext.GetPort()
 	pattern := fwk.funcContext.GetHttpPattern()
-
 	switch rt {
 	case ofctx.Knative:
 		fwk.runtime = knative.NewKnativeRuntime(port, pattern)
 		return nil
 	case ofctx.Async:
-		fwk.runtime, err = async.NewAsyncRuntime(port)
+		fwk.runtime, err = async.NewAsyncRuntime(port, pattern)
 		if err != nil {
 			return err
 		}
