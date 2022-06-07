@@ -57,10 +57,12 @@ const (
 	TestModeOn                                = "on"
 	innerEventTypePrefix                      = "io.openfunction.function"
 	tracingProviderSkywalking                 = "skywalking"
+	RawData                                   = Option("RawData") // This option controls the Send() function to send raw data
 )
 
 type Runtime string
 type ResourceType string
+type Option string
 
 type NativeContext interface {
 	// GetNativeContext returns the Go native context object.
@@ -188,6 +190,9 @@ type Context interface {
 
 	// GetInnerEvent returns the InnerEvent.
 	GetInnerEvent() InnerEvent
+
+	// ContextOptions returns the context's options.
+	ContextOptions() ContextOption
 }
 
 type Out interface {
@@ -229,6 +234,11 @@ type TracingConfig interface {
 	GetBaggage() map[string]string
 }
 
+type ContextOption interface {
+	SetRawData(condition bool) ContextOption
+	IsRawDataEnabled() bool
+}
+
 type FunctionContext struct {
 	mu             sync.Mutex
 	Name           string             `json:"name"`
@@ -252,6 +262,7 @@ type FunctionContext struct {
 	podNamespace   string
 	daprClient     dapr.Client
 	mode           string
+	options        map[Option]string
 }
 
 type EventRequest struct {
@@ -363,7 +374,7 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 
 	payload = data
 
-	if traceable(output.ComponentType) {
+	if IsTracingProviderSkyWalking(ctx) && traceable(output.ComponentType) && !ctx.IsRawDataEnabled() {
 		ie := NewInnerEvent(ctx)
 		ie.MergeMetadata(ctx.GetInnerEvent())
 		ie.SetUserData(data)
@@ -607,6 +618,37 @@ func (ctx *FunctionContext) GetOut() Out {
 	return ctx.Out
 }
 
+func (ctx *FunctionContext) setContextOption(key Option, value string) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
+	ctx.options[key] = value
+}
+
+func (ctx *FunctionContext) getContextOption(key Option) string {
+	if value, ok := ctx.options[key]; ok {
+		return value
+	} else {
+		return ""
+	}
+}
+
+func (ctx *FunctionContext) ContextOptions() ContextOption {
+	return ctx
+}
+
+func (ctx *FunctionContext) SetRawData(enable bool) ContextOption {
+	ctx.setContextOption(RawData, strconv.FormatBool(enable))
+	return ctx
+}
+
+func (ctx *FunctionContext) IsRawDataEnabled() bool {
+	if enable, err := strconv.ParseBool(ctx.getContextOption(RawData)); err != nil {
+		return false
+	} else {
+		return enable
+	}
+}
+
 func (o *FunctionOut) GetOut() *FunctionOut {
 	return o
 }
@@ -810,11 +852,20 @@ func parseContext() (*FunctionContext, error) {
 		clientGRPCPort = port
 	}
 
+	// Initialize the context options
+	newContextOptions(ctx)
+
 	return ctx, nil
 }
 
 func NewFunctionOut() *FunctionOut {
 	return &FunctionOut{}
+}
+
+func newContextOptions(ctx *FunctionContext) {
+	ctx.options = map[Option]string{
+		RawData: "false",
+	}
 }
 
 // Convert queue binding event into cloud event format to add tracing metadata in the cloud event context.
@@ -885,4 +936,13 @@ func ConvertUserDataToBytes(data interface{}) []byte {
 	} else {
 		return d
 	}
+}
+
+func IsTracingProviderSkyWalking(ctx RuntimeContext) bool {
+	if ctx.HasPluginsTracingCfg() && ctx.GetPluginsTracingCfg().IsEnabled() &&
+		ctx.GetPluginsTracingCfg().ProviderName() == TracingProviderSkywalking {
+		return true
+	}
+
+	return false
 }
