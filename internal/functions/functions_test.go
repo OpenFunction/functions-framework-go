@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"reflect"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	cloudevents "github.com/cloudevents/sdk-go/v2"
@@ -14,11 +15,12 @@ func TestNewHTTPFunction(t *testing.T) {
 
 	name := "foo"
 	path := "/foo"
-	fn, err := New(WithFunctionName(name), WithFunctionPath(path), WithHTTP(func(w http.ResponseWriter, r *http.Request) {
+	methods := []string{"GET", "POST"}
+	fn, err := New(WithFunctionName(name), WithFunctionPath(path), WithFunctionMethods(methods...), WithHTTP(func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprint(w, "Hello World!")
 	}))
 	if err != nil {
-		t.Errorf("Fail to Create http function with name: %s, path: %s", name, path)
+		t.Fatalf("Fail to Create http function with name: %s, path: %s", name, path)
 	}
 
 	if fn.GetFunctionType() != HTTPType {
@@ -32,6 +34,23 @@ func TestNewHTTPFunction(t *testing.T) {
 	if fn.GetPath() != path {
 		t.Errorf("Expected function path to be %s, got %s", path, fn.GetPath())
 	}
+
+	if !reflect.DeepEqual(fn.GetFunctionMethods(), methods) {
+		t.Errorf("Expected function methods to be %s, got %s", methods, fn.GetFunctionMethods())
+	}
+}
+
+func TestNewCloudEventFunctionWithMethods(t *testing.T) {
+
+	name := "foo"
+	path := "/foo"
+	methods := []string{"GET", "POST"}
+	_, err := New(WithFunctionName(name), WithFunctionPath(path), WithFunctionMethods(methods...), WithCloudEvent(func(context.Context, cloudevents.Event) error {
+		return nil
+	}))
+	if err == nil {
+		t.Error("Expected fail to create CloudEvent function with Methods, but succeed")
+	}
 }
 
 func TestNewCloudEventFunction(t *testing.T) {
@@ -42,7 +61,7 @@ func TestNewCloudEventFunction(t *testing.T) {
 		return nil
 	}))
 	if err != nil {
-		t.Errorf("Fail to Create cloudevent function with name: %s, path: %s, error: %s", name, path, err)
+		t.Fatalf("Fail to Create cloudevent function with name: %s, path: %s, error: %s", name, path, err)
 	}
 
 	if fn.GetFunctionType() != CloudEventType {
@@ -62,11 +81,12 @@ func TestNewOpenFunctionFunction(t *testing.T) {
 
 	name := "foo"
 	path := "/foo"
-	fn, err := New(WithFunctionName(name), WithFunctionPath(path), WithOpenFunction(func(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
+	methods := []string{"GET", "POST"}
+	fn, err := New(WithFunctionName(name), WithFunctionPath(path), WithFunctionMethods(methods...), WithOpenFunction(func(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
 		return ctx.ReturnOnSuccess(), nil
 	}))
 	if err != nil {
-		t.Errorf("Fail to Create openfunction function with name: %s, path: %s", name, path)
+		t.Fatalf("Fail to Create openfunction function with name: %s, path: %s", name, path)
 	}
 
 	if fn.GetFunctionType() != OpenFunctionType {
@@ -79,5 +99,9 @@ func TestNewOpenFunctionFunction(t *testing.T) {
 
 	if fn.GetPath() != path {
 		t.Errorf("Expected function path to be %s, got %s", path, fn.GetPath())
+	}
+
+	if !reflect.DeepEqual(fn.GetFunctionMethods(), methods) {
+		t.Errorf("Expected function methods to be %s, got %s", methods, fn.GetFunctionMethods())
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"fmt"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"k8s.io/klog/v2"
@@ -22,6 +23,7 @@ import (
 
 type functionsFrameworkImpl struct {
 	funcContext ofctx.RuntimeContext
+	funcContextMap map[string]ofctx.RuntimeContext
 	prePlugins  []plugin.Plugin
 	postPlugins []plugin.Plugin
 	pluginMap   map[string]plugin.Plugin
@@ -34,6 +36,7 @@ type Framework interface {
 	Register(ctx context.Context, fn interface{}) error
 	RegisterPlugins(customPlugins map[string]plugin.Plugin)
 	Start(ctx context.Context) error
+	StartRegisteringFunctions(ctx context.Context) error
 	GetRuntime() runtime.Interface
 }
 
@@ -50,6 +53,8 @@ func NewFramework() (*functionsFrameworkImpl, error) {
 	} else {
 		fwk.funcContext = ctx
 	}
+	// for multi functions use cases
+	fwk.funcContextMap = map[string]ofctx.RuntimeContext{}
 
 	// Scan the local directory and register the plugins if exist
 	// Register the framework default plugins under `plugin` directory
@@ -100,7 +105,8 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 	return nil
 }
 
-func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
+func (fwk *functionsFrameworkImpl) StartRegisteringFunctions(ctx context.Context) error {
+
 
 	target := os.Getenv("FUNCTION_TARGET")
 
@@ -110,14 +116,25 @@ func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
 			klog.Infof("registering function: %s on path: %s", target, fn.GetPath())
 			switch fn.GetFunctionType() {
 			case functions.HTTPType:
-				fwk.Register(ctx, fn.GetHTTPFunction())
+				if err := fwk.Register(ctx, fn.GetHTTPFunction()); err != nil {
+					klog.Errorf("failed to register function: %v", err)
+					return err
+				}
 			case functions.CloudEventType:
-				fwk.Register(ctx, fn.GetCloudEventFunction())
+				if err := fwk.Register(ctx, fn.GetCloudEventFunction()); err != nil {
+					klog.Errorf("failed to register function: %v", err)
+					return err
+				}
 			case functions.OpenFunctionType:
-				fwk.Register(ctx, fn.GetOpenFunctionFunction())
+				if err := fwk.Register(ctx, fn.GetOpenFunctionFunction()); err != nil {
+					klog.Errorf("failed to register function: %v", err)
+					return err
+				}
+			default:
+				return fmt.Errorf("Unkown function type: %s", fn.GetFunctionType())
 			}
 		} else {
-			klog.Errorf("function not found: %s", target)
+			return fmt.Errorf("function not found: %s", target)
 		}
 	} else {
 		// if FUNCTION_TARGET is not provided but user uses declarative function, by default all registered functions will be deployed.
@@ -129,19 +146,26 @@ func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
 			for _, name := range funcNames {
 				if rf, ok := fwk.registry.GetRegisteredFunction(name); ok {
 					klog.Infof("registering function: %s on path: %s", rf.GetName(), rf.GetPath())
+					// Parse OpenFunction FunctionContext
+					if ctx, err := ofctx.GetRuntimeContext(); err != nil {
+						klog.Errorf("failed to parse OpenFunction FunctionContext: %v\n", err)
+						return err
+					} else {
+						fwk.funcContextMap[rf.GetName()] = ctx
+					}
 					switch rf.GetFunctionType() {
 					case functions.HTTPType:
-						if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+						if err := fwk.runtime.RegisterHTTPFunction(fwk.funcContextMap[rf.GetName()], fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 							klog.Errorf("failed to register function: %v", err)
 							return err
 						}
 					case functions.CloudEventType:
-						if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+						if err := fwk.runtime.RegisterCloudEventFunction(ctx, fwk.funcContextMap[rf.GetName()], fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 							klog.Errorf("failed to register function: %v", err)
 							return err
 						}
 					case functions.OpenFunctionType:
-						if err := fwk.runtime.RegisterOpenFunction(fwk.funcContext, fwk.prePlugins, fwk.postPlugins, rf); err != nil {
+						if err := fwk.runtime.RegisterOpenFunction(fwk.funcContextMap[rf.GetName()], fwk.prePlugins, fwk.postPlugins, rf); err != nil {
 							klog.Errorf("failed to register function: %v", err)
 							return err
 						}
@@ -150,8 +174,18 @@ func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
 			}
 		}
 	}
+	return nil
+}
 
-	err := fwk.runtime.Start(ctx)
+func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
+
+	err := fwk.StartRegisteringFunctions(ctx)
+	if err != nil {
+		klog.Error("failed to start registering functions")
+		return err
+	}
+
+	err = fwk.runtime.Start(ctx)
 	if err != nil {
 		klog.Error("failed to start runtime service")
 		return err

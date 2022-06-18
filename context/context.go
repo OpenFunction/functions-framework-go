@@ -16,6 +16,7 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	dapr "github.com/dapr/go-sdk/client"
 	"github.com/dapr/go-sdk/service/common"
+	"github.com/gorilla/mux"
 	"k8s.io/klog/v2"
 	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
 )
@@ -885,4 +886,26 @@ func ConvertUserDataToBytes(data interface{}) []byte {
 	} else {
 		return d
 	}
+}
+
+type contextKey int
+
+const (
+	varsKey contextKey = iota
+)
+
+// Vars returns the route variables for the current request, if any.
+var (
+	Vars = mux.Vars
+)
+
+func CtxWithVars(ctx context.Context, vars map[string]string) context.Context {
+	return context.WithValue(ctx, varsKey, vars)
+}
+
+func VarsFromCtx(ctx context.Context) map[string]string {
+	if rv := ctx.Value(varsKey); rv != nil {
+		return rv.(map[string]string)
+	}
+	return nil
 }

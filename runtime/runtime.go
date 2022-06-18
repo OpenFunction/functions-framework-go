@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+	"github.com/cloudevents/sdk-go/v2/binding"
+    cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -125,7 +127,6 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 
 	} else if function, ok := fn.(func(ofctx.Context, []byte) (ofctx.Out, error)); ok {
 		if rm.FuncContext.GetBindingEvent() != nil || rm.FuncContext.GetTopicEvent() != nil {
-
 			// get the user data from inner event
 			userData := rm.FuncContext.GetInnerEvent().GetUserData()
 
@@ -136,12 +137,27 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 			rm.FuncContext.WithError(err)
 
 		} else if rm.FuncContext.GetSyncRequest().Request != nil {
-
-			body, _ := ioutil.ReadAll(rm.FuncContext.GetSyncRequest().Request.Body)
+			var body []byte
+			// if it is a cloud event, we extra the cloudevent data as user data, and pass the raw cloud event in ctx
+			// if it is a http request, we pass the request body as user data and create a dummy cloud event with user data
+			r := rm.FuncContext.GetSyncRequest().Request
+			msg := cehttp.NewMessageFromHttpRequest(r)
+			event, err := binding.ToEvent(r.Context(), msg)
+			if err == nil { // if it is a cloud event
+				body = event.Data()
+				rm.FuncContext.SetEvent("", event)
+			} else { // not a cloud event
+				body, _ = ioutil.ReadAll(r.Body)
+				ce := cloudevents.NewEvent()
+				_ = ce.SetData(cloudevents.ApplicationJSON, ofctx.ConvertUserDataToBytes(body))
+				// have to reset the cloudevent here other wise a http call can get the cloud event of the last cloud event call from ctx
+				rm.FuncContext.SetEvent("", &ce)
+			}
 			out, err := function(functionContext, body)
 			rm.FuncContext.WithOut(out.GetOut())
 			rm.FuncContext.WithError(err)
-
+			// overwrite the result
+			rm.FuncOut = rm.FuncContext.GetOut()
 		}
 	} else if function, ok := fn.(func(context.Context, cloudevents.Event) error); ok {
 		ce := cloudevents.Event{}

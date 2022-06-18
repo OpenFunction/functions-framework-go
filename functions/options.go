@@ -7,5 +7,6 @@ import (
 type FunctionOption = functions.FunctionOption
 
 var (
-	WithFunctionPath = functions.WithFunctionPath
+	WithFunctionPath    = functions.WithFunctionPath
+	WithFunctionMethods = functions.WithFunctionMethods
 )
