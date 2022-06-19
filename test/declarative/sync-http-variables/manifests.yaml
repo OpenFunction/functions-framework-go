@@ -1,57 +1,50 @@
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: v1
+kind: Pod
 metadata:
   name: sync-http-variables
   labels:
     app: sync-http-variables
     case: sync
+  annotations:
+    dapr.io/enabled: "true"
+    dapr.io/app-id: "sync-http-variables"
+    dapr.io/app-port: "8080"
+    dapr.io/log-as-json: "true"
+    dapr.io/app-protocol: "grpc"
+    dapr.io/sidecar-cpu-limit: "100m"
+    dapr.io/sidecar-memory-limit: "100Mi"
+    dapr.io/sidecar-cpu-request: "100m"
+    dapr.io/sidecar-memory-request: "100Mi"
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: sync-http-variables
-      case: sync
-  template:
-    metadata:
-      labels:
-        app: sync-http-variables
-        case: sync
-      annotations:
-        dapr.io/enabled: "true"
-        dapr.io/app-id: "sync-http-variables"
-        dapr.io/app-port: "8080"
-        dapr.io/log-as-json: "true"
-        dapr.io/app-protocol: "grpc"
-    spec:
-      containers:
-        - name: http
-          image: sync_e2e_http_variables:latest
-          imagePullPolicy: IfNotPresent
-          env:
-            - name: FUNC_CONTEXT
-              value: |
-                {
-                  "name": "sync-http-variables",
-                  "version": "v1",
-                  "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
-                  "port": "8080",
-                  "prePlugins": ["plugin-custom", "plugin-example"],
-                  "postPlugins": ["plugin-custom", "plugin-example"],
-                  "inputs": {},
-                  "outputs": {},
-                  "runtime": "Knative"
-                }
-            - name: POD_NAME
-              valueFrom:
-                fieldRef:
-                  apiVersion: v1
-                  fieldPath: metadata.name
-            - name: POD_NAMESPACE
-              value: default
-          ports:
-            - containerPort: 8080
-              name: function-port
-              protocol: TCP
+  containers:
+    - name: http
+      image: sync_e2e_http_variables:latest
+      imagePullPolicy: IfNotPresent
+      env:
+        - name: FUNC_CONTEXT
+          value: |
+            {
+              "name": "sync-http-variables",
+              "version": "v1",
+              "requestID": "a0f2ad8d-5062-4812-91e9-95416489fb01",
+              "port": "8080",
+              "prePlugins": ["plugin-custom", "plugin-example"],
+              "postPlugins": ["plugin-custom", "plugin-example"],
+              "inputs": {},
+              "outputs": {},
+              "runtime": "Knative"
+            }
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              apiVersion: v1
+              fieldPath: metadata.name
+        - name: POD_NAMESPACE
+          value: default
+      ports:
+        - containerPort: 8080
+          name: function-port
+          protocol: TCP
 ---
 apiVersion: v1
 kind: Service
