@@ -3,9 +3,9 @@ package framework
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"os"
-	"fmt"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"k8s.io/klog/v2"
@@ -22,13 +22,13 @@ import (
 )
 
 type functionsFrameworkImpl struct {
-	funcContext ofctx.RuntimeContext
+	funcContext    ofctx.RuntimeContext
 	funcContextMap map[string]ofctx.RuntimeContext
-	prePlugins  []plugin.Plugin
-	postPlugins []plugin.Plugin
-	pluginMap   map[string]plugin.Plugin
-	runtime     runtime.Interface
-	registry    *registry.Registry
+	prePlugins     []plugin.Plugin
+	postPlugins    []plugin.Plugin
+	pluginMap      map[string]plugin.Plugin
+	runtime        runtime.Interface
+	registry       *registry.Registry
 }
 
 // Framework is the interface for the function conversion.
@@ -36,7 +36,7 @@ type Framework interface {
 	Register(ctx context.Context, fn interface{}) error
 	RegisterPlugins(customPlugins map[string]plugin.Plugin)
 	Start(ctx context.Context) error
-	StartRegisteringFunctions(ctx context.Context) error
+	TryRegisterFunctions(ctx context.Context) error
 	GetRuntime() runtime.Interface
 }
 
@@ -105,8 +105,7 @@ func (fwk *functionsFrameworkImpl) Register(ctx context.Context, fn interface{})
 	return nil
 }
 
-func (fwk *functionsFrameworkImpl) StartRegisteringFunctions(ctx context.Context) error {
-
+func (fwk *functionsFrameworkImpl) TryRegisterFunctions(ctx context.Context) error {
 
 	target := os.Getenv("FUNCTION_TARGET")
 
@@ -179,7 +178,7 @@ func (fwk *functionsFrameworkImpl) StartRegisteringFunctions(ctx context.Context
 
 func (fwk *functionsFrameworkImpl) Start(ctx context.Context) error {
 
-	err := fwk.StartRegisteringFunctions(ctx)
+	err := fwk.TryRegisterFunctions(ctx)
 	if err != nil {
 		klog.Error("failed to start registering functions")
 		return err

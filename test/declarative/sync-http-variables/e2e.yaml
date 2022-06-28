@@ -53,9 +53,13 @@ verify:
   cases:
     - query: bash test/declarative/sync-http-variables/verify-http.sh 127.0.0.1:80/hello/openfunction | yq
       expected: expected.data-hello.yaml
-    - query: bash test/declarative/sync-http-variables/verify-cloudevent.sh 127.0.0.1:80/foo/openfunction | yq
+    - query: bash test/declarative/sync-http-variables/verify-cloudevent-binary.sh 127.0.0.1:80/foo/openfunction | yq
+      expected: expected.data-foo.yaml
+    - query: bash test/declarative/sync-http-variables/verify-cloudevent-structured.sh 127.0.0.1:80/foo/openfunction | yq
       expected: expected.data-foo.yaml
     - query: bash test/declarative/sync-http-variables/verify-ofn-http.sh 127.0.0.1:80/bar/openfunction | yq
       expected: expected.data-bar.yaml
-    - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent.sh 127.0.0.1:80/bar/openfunction | yq
+    - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-binary.sh 127.0.0.1:80/bar/openfunction | yq
+      expected: expected.data-bar.yaml
+    - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-structured.sh 127.0.0.1:80/bar/openfunction | yq
       expected: expected.data-bar.yaml

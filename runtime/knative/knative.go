@@ -145,14 +145,14 @@ func (r *Runtime) RegisterCloudEventFunction(
 		return err
 	}
 
-	// function to extra Vars and add into ctx
-	getVars := func(next http.Handler) http.Handler {
+	// function to extract Vars and add into ctx
+	withVars := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
 			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
-	r.handler.Handle(rf.GetPath(), getVars(handleFn))
+	r.handler.Handle(rf.GetPath(), withVars(handleFn))
 	return nil
 }
 

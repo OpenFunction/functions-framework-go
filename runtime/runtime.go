@@ -7,7 +7,7 @@ import (
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	"github.com/cloudevents/sdk-go/v2/binding"
-    cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
+	cehttp "github.com/cloudevents/sdk-go/v2/protocol/http"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -138,7 +138,7 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 
 		} else if rm.FuncContext.GetSyncRequest().Request != nil {
 			var body []byte
-			// if it is a cloud event, we extra the cloudevent data as user data, and pass the raw cloud event in ctx
+			// if it is a cloud event, we extract the cloudevent data as user data, and pass the raw cloud event in ctx
 			// if it is a http request, we pass the request body as user data and create a dummy cloud event with user data
 			r := rm.FuncContext.GetSyncRequest().Request
 			msg := cehttp.NewMessageFromHttpRequest(r)

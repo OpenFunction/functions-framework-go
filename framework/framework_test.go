@@ -167,7 +167,6 @@ func TestCloudEventFunction(t *testing.T) {
 	}
 }
 
-
 func TestMultipleFunctions(t *testing.T) {
 	env := `{
   "name": "function-demo",
@@ -205,16 +204,16 @@ func TestMultipleFunctions(t *testing.T) {
 		functions.WithFunctionMethods("GET"),
 	)
 
-	functions.CloudEvent("ce", fakeCloudEventsFunction, 
+	functions.CloudEvent("ce", fakeCloudEventsFunction,
 		functions.WithFunctionPath("/ce"),
 	)
 
-	functions.OpenFunction("ofn", fakeBindingsFunction, 
+	functions.OpenFunction("ofn", fakeBindingsFunction,
 		functions.WithFunctionPath("/ofn"),
 		functions.WithFunctionMethods("GET", "POST"),
 	)
 
-	if err := fwk.StartRegisteringFunctions(ctx); err != nil {
+	if err := fwk.TryRegisterFunctions(ctx); err != nil {
 		t.Fatalf("failed to start registering functions: %v", err)
 	}
 
@@ -235,13 +234,13 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http.Get: %v", err)
 		}
-	
+
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("ioutil.ReadAll: %v", err)
 		}
-	
+
 		if got, want := string(body), "Hello World!"; got != want {
 			t.Fatalf("TestHTTPFunction: got %v; want %v", got, want)
 		}
@@ -253,13 +252,13 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("http.Get: %v", err)
 		}
-	
+
 		defer resp.Body.Close()
 		body, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			t.Fatalf("ioutil.ReadAll: %v", err)
 		}
-	
+
 		if got, want := string(body), "hello there"; got != want {
 			t.Fatalf("TestHTTPFunction: got %v; want %v", got, want)
 		}
@@ -271,7 +270,7 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to marshal message: %v", err)
 		}
-	
+
 		req, err := http.NewRequest("POST", srv.URL+"/ce", bytes.NewBuffer(messageByte))
 		if err != nil {
 			t.Fatalf("error creating HTTP request for test: %v", err)
@@ -285,7 +284,7 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to do client.Do: %v", err)
 		}
-	
+
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("failed to test cloudevents function: response status = %v, want %v", resp.StatusCode, http.StatusOK)
 		}
@@ -297,7 +296,7 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to marshal message: %v", err)
 		}
-	
+
 		req, err := http.NewRequest("POST", srv.URL+"/ofn", bytes.NewBuffer(messageByte))
 		if err != nil {
 			t.Fatalf("error creating HTTP request for test: %v", err)
@@ -311,7 +310,7 @@ func TestMultipleFunctions(t *testing.T) {
 		if err != nil {
 			t.Fatalf("failed to do client.Do: %v", err)
 		}
-	
+
 		if resp.StatusCode != http.StatusOK {
 			t.Fatalf("failed to test cloudevents function: response status = %v, want %v", resp.StatusCode, http.StatusOK)
 		}
