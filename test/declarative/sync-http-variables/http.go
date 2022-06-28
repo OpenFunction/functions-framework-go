@@ -1,9 +1,9 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
-	"context"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
 	"github.com/OpenFunction/functions-framework-go/functions"
@@ -17,14 +17,18 @@ func init() {
 		functions.WithFunctionMethods("GET", "POST"),
 	)
 
-	functions.CloudEvent("Foo", foo, 
+	functions.CloudEvent("Foo", foo,
 		functions.WithFunctionPath("/foo/{name}"),
 	)
 
-	functions.OpenFunction("Bar", bar, 
+	functions.OpenFunction("Bar", bar,
 		functions.WithFunctionPath("/bar/{name}"),
 		functions.WithFunctionMethods("GET", "POST"),
 	)
+}
+
+type Message struct {
+	Data string `json:"data"`
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
@@ -39,8 +43,15 @@ func hello(w http.ResponseWriter, r *http.Request) {
 
 func foo(ctx context.Context, ce cloudevents.Event) error {
 	vars := ofctx.VarsFromCtx(ctx)
+
+	msg := &Message{}
+	err := json.Unmarshal(ce.Data(), msg)
+	if err != nil {
+		return err
+	}
+
 	response := map[string]string{
-		string(ce.Data()): vars["name"],
+		msg.Data: vars["name"],
 	}
 	responseBytes, _ := json.Marshal(response)
 	klog.Infof("cloudevent - Data: %s", string(responseBytes))
@@ -49,8 +60,14 @@ func foo(ctx context.Context, ce cloudevents.Event) error {
 
 func bar(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
 	vars := ofctx.VarsFromCtx(ctx.GetNativeContext())
+	msg := &Message{}
+	err := json.Unmarshal(in, msg)
+	if err != nil {
+		return ctx.ReturnOnInternalError(), err
+	}
+
 	response := map[string]string{
-		string(in): vars["name"],
+		msg.Data: vars["name"],
 	}
 	responseBytes, _ := json.Marshal(response)
 	return ctx.ReturnOnSuccess().WithData(responseBytes), nil
