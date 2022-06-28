@@ -55,6 +55,8 @@ jobs:
             e2e: "test/declarative/sync-http-multiple/e2e.yaml"
           - name: Declarative multiple Sync Cloudevent e2e test
             e2e: "test/declarative/sync-cloudevent-multiple/e2e.yaml"
+          - name: Declarative multiple functions with variables e2e test
+            e2e: "test/declarative/sync-http-variables/e2e.yaml"
     steps:
       - uses: actions/checkout@v2
 

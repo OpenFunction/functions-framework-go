@@ -4,6 +4,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"net/http"
+	"reflect"
 )
 
 var (
@@ -291,4 +293,37 @@ func TestParseFunctionContext(t *testing.T) {
 	} else {
 		t.Fatal("Error set function context env")
 	}
+}
+
+
+func TestGetVarsFromContext(t *testing.T) {
+
+	tests := []struct {
+		name    string
+		request *http.Request
+		vars    map[string]string
+	}{
+		{
+			name: "single variable",
+			request: &http.Request{},
+			vars: map[string]string{"key1": "val1"},
+		},
+		{
+			name: "multi variables",
+			request: &http.Request{},
+			vars: map[string]string{"key1": "val1", "key2": "val2"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := tt.request
+			ctx := r.Context()
+			ctx = CtxWithVars(ctx, tt.vars)
+			got := VarsFromCtx(ctx)
+			if !reflect.DeepEqual(got, tt.vars) {
+				t.Errorf("VarsFromCtx = %v, want %v", got, tt.vars)
+			}
+		})
+	}
+
 }

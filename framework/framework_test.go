@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
+	"github.com/OpenFunction/functions-framework-go/functions"
 	"github.com/OpenFunction/functions-framework-go/runtime/async"
 )
 
@@ -164,6 +165,157 @@ func TestCloudEventFunction(t *testing.T) {
 	if resp.StatusCode != http.StatusOK {
 		t.Fatalf("failed to test cloudevents function: response status = %v, want %v", resp.StatusCode, http.StatusOK)
 	}
+}
+
+func TestMultipleFunctions(t *testing.T) {
+	env := `{
+  "name": "function-demo",
+  "version": "v1.0.0",
+  "port": "8080",
+  "runtime": "Knative",
+  "httpPattern": "/"
+}`
+	var ceDemo = struct {
+		message map[string]string
+		headers map[string]string
+	}{
+		message: map[string]string{
+			"msg": "Hello World!",
+		},
+		headers: map[string]string{
+			"Ce-Specversion": "1.0",
+			"Ce-Type":        "cloudevents.openfunction.samples.helloworld",
+			"Ce-Source":      "cloudevents.openfunction.samples/helloworldsource",
+			"Ce-Id":          "536808d3-88be-4077-9d7a-a3f162705f79",
+		},
+	}
+
+	ctx := context.Background()
+	fwk, err := createFramework(env)
+	if err != nil {
+		t.Fatalf("failed to create framework: %v", err)
+	}
+
+	fwk.RegisterPlugins(nil)
+
+	// register multiple functions
+	functions.HTTP("http", fakeHTTPFunction,
+		functions.WithFunctionPath("/http"),
+		functions.WithFunctionMethods("GET"),
+	)
+
+	functions.CloudEvent("ce", fakeCloudEventsFunction,
+		functions.WithFunctionPath("/ce"),
+	)
+
+	functions.OpenFunction("ofn", fakeBindingsFunction,
+		functions.WithFunctionPath("/ofn"),
+		functions.WithFunctionMethods("GET", "POST"),
+	)
+
+	if err := fwk.TryRegisterFunctions(ctx); err != nil {
+		t.Fatalf("failed to start registering functions: %v", err)
+	}
+
+	if fwk.GetRuntime() == nil {
+		t.Fatal("failed to create runtime")
+	}
+	handler := fwk.GetRuntime().GetHandler()
+	if handler == nil {
+		t.Fatal("handler is nil")
+	}
+
+	srv := httptest.NewServer(handler.(http.Handler))
+	defer srv.Close()
+
+	// test http
+	t.Run("sending http", func(t *testing.T) {
+		resp, err := http.Get(srv.URL + "/http")
+		if err != nil {
+			t.Fatalf("http.Get: %v", err)
+		}
+
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("ioutil.ReadAll: %v", err)
+		}
+
+		if got, want := string(body), "Hello World!"; got != want {
+			t.Fatalf("TestHTTPFunction: got %v; want %v", got, want)
+		}
+	})
+
+	// test http to openfunction
+	t.Run("sending http to openfunction", func(t *testing.T) {
+		resp, err := http.Get(srv.URL + "/ofn")
+		if err != nil {
+			t.Fatalf("http.Get: %v", err)
+		}
+
+		defer resp.Body.Close()
+		body, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			t.Fatalf("ioutil.ReadAll: %v", err)
+		}
+
+		if got, want := string(body), "hello there"; got != want {
+			t.Fatalf("TestHTTPFunction: got %v; want %v", got, want)
+		}
+	})
+
+	// test cloudevent
+	t.Run("sending cloudevent", func(t *testing.T) {
+		messageByte, err := json.Marshal(ceDemo.message)
+		if err != nil {
+			t.Fatalf("failed to marshal message: %v", err)
+		}
+
+		req, err := http.NewRequest("POST", srv.URL+"/ce", bytes.NewBuffer(messageByte))
+		if err != nil {
+			t.Fatalf("error creating HTTP request for test: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		for k, v := range ceDemo.headers {
+			req.Header.Set(k, v)
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed to do client.Do: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("failed to test cloudevents function: response status = %v, want %v", resp.StatusCode, http.StatusOK)
+		}
+	})
+
+	// test cloudevent to openfunction
+	t.Run("sending cloudevent to openfunction", func(t *testing.T) {
+		messageByte, err := json.Marshal(ceDemo.message)
+		if err != nil {
+			t.Fatalf("failed to marshal message: %v", err)
+		}
+
+		req, err := http.NewRequest("POST", srv.URL+"/ofn", bytes.NewBuffer(messageByte))
+		if err != nil {
+			t.Fatalf("error creating HTTP request for test: %v", err)
+		}
+		req.Header.Set("Content-Type", "application/json")
+		for k, v := range ceDemo.headers {
+			req.Header.Set(k, v)
+		}
+		client := &http.Client{}
+		resp, err := client.Do(req)
+		if err != nil {
+			t.Fatalf("failed to do client.Do: %v", err)
+		}
+
+		if resp.StatusCode != http.StatusOK {
+			t.Fatalf("failed to test cloudevents function: response status = %v, want %v", resp.StatusCode, http.StatusOK)
+		}
+	})
+
 }
 
 func TestAsyncBindingsFunction(t *testing.T) {

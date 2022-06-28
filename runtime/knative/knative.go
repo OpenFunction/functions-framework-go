@@ -9,6 +9,8 @@ import (
 	"strings"
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
+
+	"github.com/gorilla/mux"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -28,7 +30,7 @@ const (
 type Runtime struct {
 	port    string
 	pattern string
-	handler *http.ServeMux
+	handler *mux.Router
 }
 
 func NewKnativeRuntime(port string, pattern string) *Runtime {
@@ -38,7 +40,7 @@ func NewKnativeRuntime(port string, pattern string) *Runtime {
 	return &Runtime{
 		port:    port,
 		pattern: pattern,
-		handler: http.DefaultServeMux,
+		handler: mux.NewRouter(),
 	}
 }
 
@@ -58,15 +60,20 @@ func (r *Runtime) RegisterOpenFunction(
 	ctx.InitDaprClientIfNil()
 
 	// Register the synchronous function (based on Knaitve runtime)
-	r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
+	route := r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-		rm.FuncContext.SetSyncRequest(w, r)
+		// save the Vars into the context
+		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
+		rm.FuncContext.SetNativeContext(_ctx)
+		rm.FuncContext.SetSyncRequest(w, r.WithContext(_ctx))
 		defer RecoverPanicHTTP(w, "Function panic")
 		rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 		switch rm.FuncOut.GetCode() {
 		case ofctx.Success:
 			w.Header().Set(functionStatusHeader, successStatus)
+			w.WriteHeader(rm.FuncOut.GetCode())
+			w.Write(rm.FuncOut.GetData())
 			return
 		case ofctx.InternalError:
 			w.Header().Set(functionStatusHeader, errorStatus)
@@ -76,6 +83,13 @@ func (r *Runtime) RegisterOpenFunction(
 			return
 		}
 	})
+
+	// add methods matcher if provided
+	methods := rf.GetFunctionMethods()
+	if len(methods) > 0 {
+		route.Methods(methods...)
+	}
+
 	return nil
 }
 
@@ -85,12 +99,22 @@ func (r *Runtime) RegisterHTTPFunction(
 	postPlugins []plugin.Plugin,
 	rf *functions.RegisteredFunction,
 ) error {
-	r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
+	route := r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-		rm.FuncContext.SetSyncRequest(w, r)
+		// save the Vars into the context
+		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
+		rm.FuncContext.SetNativeContext(_ctx)
+		rm.FuncContext.SetSyncRequest(w, r.WithContext(_ctx))
 		defer RecoverPanicHTTP(w, "Function panic")
 		rm.FunctionRunWrapperWithHooks(rf.GetHTTPFunction())
 	})
+
+	// add methods matcher if any
+	methods := rf.GetFunctionMethods()
+	if len(methods) > 0 {
+		route.Methods(methods...)
+	}
+
 	return nil
 }
 
@@ -109,6 +133,8 @@ func (r *Runtime) RegisterCloudEventFunction(
 
 	handleFn, err := cloudevents.NewHTTPReceiveHandler(ctx, p, func(ctx context.Context, ce cloudevents.Event) error {
 		rm := runtime.NewRuntimeManager(funcContext, prePlugins, postPlugins)
+		// save the native ctx
+		rm.FuncContext.SetNativeContext(ctx)
 		rm.FuncContext.SetEvent("", &ce)
 		rm.FunctionRunWrapperWithHooks(rf.GetCloudEventFunction())
 		return rm.FuncContext.GetError()
@@ -118,7 +144,15 @@ func (r *Runtime) RegisterCloudEventFunction(
 		klog.Errorf("failed to create handler: %v\n", err)
 		return err
 	}
-	r.handler.Handle(rf.GetPath(), handleFn)
+
+	// function to extract Vars and add into ctx
+	withVars := func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}
+	r.handler.Handle(rf.GetPath(), withVars(handleFn))
 	return nil
 }
 
