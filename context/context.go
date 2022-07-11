@@ -194,6 +194,9 @@ type Context interface {
 
 	// ContextOptions returns the context's options.
 	ContextOptions() ContextOption
+
+	// GetInputName return the inputName of the event
+	GetInputName() string
 }
 
 type Out interface {
@@ -591,6 +594,10 @@ func (ctx *FunctionContext) GetCloudEvent() *cloudevents.Event {
 
 func (ctx *FunctionContext) GetInnerEvent() InnerEvent {
 	return ctx.Event.innerEvent
+}
+
+func (ctx *FunctionContext) GetInputName() string {
+	return ctx.Event.InputName
 }
 
 func (ctx *FunctionContext) GetPluginsTracingCfg() TracingConfig {

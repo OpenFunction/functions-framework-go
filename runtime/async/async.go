@@ -99,12 +99,13 @@ func (r *Runtime) RegisterOpenFunction(
 		// Serving function with inputs
 		if ctx.HasInputs() {
 			for name, input := range ctx.GetInputs() {
+				n := name
 				switch input.GetType() {
 				case ofctx.OpenFuncBinding:
 					input.Uri = input.ComponentName
 					funcErr = r.handler.AddBindingInvocationHandler(input.Uri, func(c context.Context, in *dapr.BindingEvent) (out []byte, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-						rm.FuncContext.SetEvent(name, in)
+						rm.FuncContext.SetEvent(n, in)
 						rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 						switch rm.FuncOut.GetCode() {
