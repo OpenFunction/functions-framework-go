@@ -37,6 +37,7 @@ type FakeServer struct {
 	topicRegistrar  internal.TopicRegistrar
 	bindingHandlers map[string]common.BindingInvocationHandler
 	authToken       string
+	grpcServer      *grpc.Server
 }
 
 func (s *FakeServer) RegisterActorImplFactory(f actor.Factory, opts ...config.Option) {
@@ -47,12 +48,18 @@ func (s *FakeServer) RegisterActorImplFactory(f actor.Factory, opts ...config.Op
 func (s *FakeServer) Start() error {
 	gs := grpc.NewServer()
 	pb.RegisterAppCallbackServer(gs, s)
+	s.grpcServer = gs
 	return gs.Serve(s.listener)
 }
 
 // Stop stops the previously started service.
 func (s *FakeServer) Stop() error {
 	return s.listener.Close()
+}
+
+func (s *FakeServer) GracefulStop() error {
+	s.grpcServer.GracefulStop()
+	return nil
 }
 
 // AddBindingInvocationHandler appends provided binding invocation handler with its name to the service.
