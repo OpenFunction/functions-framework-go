@@ -283,10 +283,11 @@ type SyncRequest struct {
 }
 
 type Input struct {
-	Uri           string            `json:"uri,omitempty"`
-	ComponentName string            `json:"componentName"`
-	ComponentType string            `json:"componentType"`
-	Metadata      map[string]string `json:"metadata,omitempty"`
+	Uri               string             `json:"uri,omitempty"`
+	ComponentName     string             `json:"componentName"`
+	ComponentType     string             `json:"componentType"`
+	Metadata          map[string]string  `json:"metadata,omitempty"`
+	PubSubRoutingRule *PubSubRoutingRule `json:"pubSubRoutingRule,omitempty"`
 }
 
 // GetType will be called after the context has been parsed correctly,
@@ -329,6 +330,12 @@ type PluginsTracing struct {
 type TracingProvider struct {
 	Name      string `json:"name" yaml:"name"`
 	OapServer string `json:"oapServer" yaml:"oapServer"`
+}
+
+type PubSubRoutingRule struct {
+	Route    string `json:"route"`
+	Match    string `json:"match"`
+	Priority int    `json:"priority"`
 }
 
 type ResponseWriterWrapper struct {

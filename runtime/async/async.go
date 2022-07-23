@@ -125,6 +125,11 @@ func (r *Runtime) RegisterOpenFunction(
 						PubsubName: input.ComponentName,
 						Topic:      input.Uri,
 					}
+					if input.PubSubRoutingRule != nil && input.PubSubRoutingRule.Match != "" {
+						sub.Route = input.PubSubRoutingRule.Route
+						sub.Match = input.PubSubRoutingRule.Match
+						sub.Priority = input.PubSubRoutingRule.Priority
+					}
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 						rm.FuncContext.SetEvent(name, e)
