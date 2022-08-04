@@ -5,7 +5,7 @@ setup:
     - name: install dapr
       command: |
         dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
-        dapr init -k --runtime-version 1.8.0 --log-as-json --wait --timeout 600
+        dapr init -k --runtime-version 1.8.3 --log-as-json --wait --timeout 600
       wait:
         - namespace: dapr-system
           resource: pod
