@@ -17,12 +17,26 @@ func init() {
 		functions.WithFunctionMethods("GET", "POST"),
 	)
 
+	functions.HTTP("Hellov2", hellov2,
+		functions.WithFunctionPath("/hellov2/{name}"),
+		functions.WithFunctionMethods("GET", "POST"),
+	)
+
 	functions.CloudEvent("Foo", foo,
 		functions.WithFunctionPath("/foo/{name}"),
 	)
 
+	functions.CloudEvent("Foov2", foov2,
+		functions.WithFunctionPath("/foov2/{name}"),
+	)
+
 	functions.OpenFunction("Bar", bar,
 		functions.WithFunctionPath("/bar/{name}"),
+		functions.WithFunctionMethods("GET", "POST"),
+	)
+
+	functions.OpenFunction("Barv2", barv2,
+		functions.WithFunctionPath("/barv2/{name}"),
 		functions.WithFunctionMethods("GET", "POST"),
 	)
 }
@@ -32,6 +46,16 @@ type Message struct {
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
+	vars := ofctx.VarsFromCtx(r.Context())
+	response := map[string]string{
+		"hello": vars["name"],
+	}
+	responseBytes, _ := json.Marshal(response)
+	w.Header().Set("Content-type", "application/json")
+	w.Write(responseBytes)
+}
+
+func hellov2(w http.ResponseWriter, r *http.Request) {
 	vars := ofctx.VarsFromCtx(r.Context())
 	response := map[string]string{
 		"hello": vars["name"],
@@ -58,7 +82,39 @@ func foo(ctx context.Context, ce cloudevents.Event) error {
 	return nil
 }
 
+func foov2(ctx context.Context, ce cloudevents.Event) error {
+	vars := ofctx.VarsFromCtx(ctx)
+
+	msg := &Message{}
+	err := json.Unmarshal(ce.Data(), msg)
+	if err != nil {
+		return err
+	}
+
+	response := map[string]string{
+		msg.Data: vars["name"],
+	}
+	responseBytes, _ := json.Marshal(response)
+	klog.Infof("cloudevent - Data: %s", string(responseBytes))
+	return nil
+}
+
 func bar(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
+	vars := ofctx.VarsFromCtx(ctx.GetNativeContext())
+	msg := &Message{}
+	err := json.Unmarshal(in, msg)
+	if err != nil {
+		return ctx.ReturnOnInternalError(), err
+	}
+
+	response := map[string]string{
+		msg.Data: vars["name"],
+	}
+	responseBytes, _ := json.Marshal(response)
+	return ctx.ReturnOnSuccess().WithData(responseBytes), nil
+}
+
+func barv2(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
 	vars := ofctx.VarsFromCtx(ctx.GetNativeContext())
 	msg := &Message{}
 	err := json.Unmarshal(in, msg)

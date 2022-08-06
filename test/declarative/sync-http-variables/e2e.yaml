@@ -5,7 +5,7 @@ setup:
     - name: install dapr
       command: |
         dapr -v || (wget -q https://raw.githubusercontent.com/dapr/cli/master/install/install.sh -O - | /bin/bash)
-        dapr init -k --runtime-version 1.8.0 --log-as-json --wait --timeout 600
+        dapr init -k --runtime-version 1.8.1 --log-as-json --wait --timeout 600
       wait:
         - namespace: dapr-system
           resource: pod
@@ -53,13 +53,25 @@ verify:
   cases:
     - query: bash test/declarative/sync-http-variables/verify-http.sh 127.0.0.1:80/hello/openfunction | yq
       expected: expected.data-hello.yaml
+    - query: bash test/declarative/sync-http-variables/verify-http.sh 127.0.0.1:80/hellov2/openfunction | yq
+      expected: expected.data-hello.yaml
     - query: bash test/declarative/sync-http-variables/verify-cloudevent-binary.sh 127.0.0.1:80/foo/openfunction | yq
       expected: expected.data-foo.yaml
     - query: bash test/declarative/sync-http-variables/verify-cloudevent-structured.sh 127.0.0.1:80/foo/openfunction | yq
+      expected: expected.data-foo.yaml
+    - query: bash test/declarative/sync-http-variables/verify-cloudevent-binary.sh 127.0.0.1:80/foov2/openfunction | yq
+      expected: expected.data-foo.yaml
+    - query: bash test/declarative/sync-http-variables/verify-cloudevent-structured.sh 127.0.0.1:80/foov2/openfunction | yq
       expected: expected.data-foo.yaml
     - query: bash test/declarative/sync-http-variables/verify-ofn-http.sh 127.0.0.1:80/bar/openfunction | yq
       expected: expected.data-bar.yaml
     - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-binary.sh 127.0.0.1:80/bar/openfunction | yq
       expected: expected.data-bar.yaml
     - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-structured.sh 127.0.0.1:80/bar/openfunction | yq
+      expected: expected.data-bar.yaml
+    - query: bash test/declarative/sync-http-variables/verify-ofn-http.sh 127.0.0.1:80/barv2/openfunction | yq
+      expected: expected.data-bar.yaml
+    - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-binary.sh 127.0.0.1:80/barv2/openfunction | yq
+      expected: expected.data-bar.yaml
+    - query: bash test/declarative/sync-http-variables/verify-ofn-cloudevent-structured.sh 127.0.0.1:80/barv2/openfunction | yq
       expected: expected.data-bar.yaml

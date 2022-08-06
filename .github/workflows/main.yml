@@ -47,14 +47,6 @@ jobs:
             e2e: "test/sync-http/e2e.yaml"
           - name: Sync Cloudevent e2e test
             e2e: "test/sync-cloudevent/e2e.yaml"
-          - name: Declarative Sync HTTP e2e test
-            e2e: "test/declarative/sync-http/e2e.yaml"
-          - name: Declarative Sync Cloudevent e2e test
-            e2e: "test/declarative/sync-cloudevent/e2e.yaml"
-          - name: Declarative multiple Sync HTTP e2e test
-            e2e: "test/declarative/sync-http-multiple/e2e.yaml"
-          - name: Declarative multiple Sync Cloudevent e2e test
-            e2e: "test/declarative/sync-cloudevent-multiple/e2e.yaml"
           - name: Declarative multiple functions with variables e2e test
             e2e: "test/declarative/sync-http-variables/e2e.yaml"
     steps:
