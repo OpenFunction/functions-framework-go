@@ -4,7 +4,7 @@
 
 To learn more about the functions-framework criteria, refer to the following links:
 
-- [functions-framework proposal](https://github.com/OpenFunction/OpenFunction/blob/main/docs/proposals/202105_add_function_framework.md#function-context)
+- [functions-framework proposal](https://github.com/OpenFunction/OpenFunction/blob/main/docs/proposals/202105-add-function-framework.md)
 - [functions-framework repository](https://github.com/OpenFunction/functions-framework)
 
 ## Usage
