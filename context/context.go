@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"strconv"
@@ -22,7 +23,8 @@ import (
 )
 
 var (
-	clientGRPCPort         string
+	daprGRPCHost           string
+	daprGRPCPort           string
 	bindingQueueComponents = map[string]bool{
 		"bindings.kafka":                  true,
 		"bindings.rabbitmq":               true,
@@ -50,7 +52,8 @@ const (
 	InternalError                             = 500
 	defaultPort                               = "8080"
 	defaultHttpPattern                        = "/"
-	daprSidecarGRPCPort                       = "50001"
+	defaultDaprHost                           = "127.0.0.1"
+	defaultDaprGRPCPort                       = "50001"
 	TracingProviderSkywalking                 = "skywalking"
 	TracingProviderOpentelemetry              = "opentelemetry"
 	KubernetesMode                            = "kubernetes"
@@ -451,7 +454,8 @@ func (ctx *FunctionContext) InitDaprClientIfNil() {
 		defer ctx.mu.Unlock()
 
 		for attempts := 120; attempts > 0; attempts-- {
-			c, e := dapr.NewClientWithPort(clientGRPCPort)
+			address := net.JoinHostPort(daprGRPCHost, daprGRPCPort)
+			c, e := dapr.NewClientWithAddress(address)
 			if e == nil {
 				ctx.daprClient = c
 				break
@@ -851,13 +855,21 @@ func parseContext() (*FunctionContext, error) {
 		ctx.HttpPattern = defaultHttpPattern
 	}
 
+	// Support one-sidecar-per-function mode
+	host := os.Getenv("DAPR_HOST")
+	if host == "" {
+		daprGRPCHost = defaultDaprHost
+	} else {
+		daprGRPCHost = host
+	}
+
 	// When using self-hosted mode, configure the client port via env,
 	// refer to https://docs.dapr.io/reference/environment/
 	port := os.Getenv("DAPR_GRPC_PORT")
 	if port == "" {
-		clientGRPCPort = daprSidecarGRPCPort
+		daprGRPCPort = defaultDaprGRPCPort
 	} else {
-		clientGRPCPort = port
+		daprGRPCPort = port
 	}
 
 	// Initialize the context options
