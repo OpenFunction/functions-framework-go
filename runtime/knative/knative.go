@@ -56,8 +56,10 @@ func (r *Runtime) RegisterOpenFunction(
 	postPlugins []plugin.Plugin,
 	rf *functions.RegisteredFunction,
 ) error {
-	// Initialize dapr client if it is nil
-	ctx.InitDaprClientIfNil()
+	// Initialize dapr client if FuncContext defined inputs or outputs
+	if ctx.HasInputs() || ctx.HasOutputs() {
+		ctx.InitDaprClientIfNil()
+	}
 
 	// Register the synchronous function (based on Knaitve runtime)
 	route := r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {

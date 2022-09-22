@@ -7,8 +7,10 @@ import (
 	"os"
 	"strings"
 
+	daprruntime "github.com/dapr/dapr/pkg/runtime"
 	dapr "github.com/dapr/go-sdk/service/common"
-	daprd "github.com/dapr/go-sdk/service/grpc"
+	grpcsvc "github.com/dapr/go-sdk/service/grpc"
+	httpsvc "github.com/dapr/go-sdk/service/grpc"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -19,6 +21,7 @@ import (
 
 const (
 	defaultPattern = "/"
+	protocolEnvVar = "APP_PROTOCOL"
 )
 
 type Runtime struct {
@@ -45,11 +48,24 @@ func NewAsyncRuntime(port string, pattern string) (*Runtime, error) {
 			grpcHander: grpcHandler,
 		}, nil
 	}
-	handler, err := daprd.NewService(fmt.Sprintf(":%s", port))
+
+	var newService func(address string) (s dapr.Service, err error)
+	protocol := daprruntime.Protocol(os.Getenv(protocolEnvVar))
+	switch protocol {
+	case daprruntime.HTTPProtocol:
+		newService = httpsvc.NewService
+	case daprruntime.GRPCProtocol:
+		newService = grpcsvc.NewService
+	default:
+		protocol = daprruntime.GRPCProtocol
+		newService = grpcsvc.NewService
+	}
+	handler, err := newService(fmt.Sprintf(":%s", port))
 	if err != nil {
-		klog.Errorf("failed to create dapr grpc service: %v\n", err)
+		klog.Errorf("failed to create dapr %v service: %v\n", protocol, err)
 		return nil, err
 	}
+
 	return &Runtime{
 		port:       port,
 		pattern:    pattern,
@@ -127,7 +143,7 @@ func (r *Runtime) RegisterOpenFunction(
 					}
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
 						rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
-						rm.FuncContext.SetEvent(name, e)
+						rm.FuncContext.SetEvent(n, e)
 						rm.FunctionRunWrapperWithHooks(rf.GetOpenFunctionFunction())
 
 						switch rm.FuncOut.GetCode() {
