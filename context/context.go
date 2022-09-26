@@ -517,6 +517,8 @@ func (ctx *FunctionContext) GetNativeContext() context.Context {
 }
 
 func (ctx *FunctionContext) SetNativeContext(c context.Context) {
+	ctx.mu.Lock()
+	defer ctx.mu.Unlock()
 	ctx.Ctx = c
 }
 
