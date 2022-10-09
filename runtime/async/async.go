@@ -7,7 +7,6 @@ import (
 	"os"
 	"strings"
 
-	daprruntime "github.com/dapr/dapr/pkg/runtime"
 	dapr "github.com/dapr/go-sdk/service/common"
 	grpcsvc "github.com/dapr/go-sdk/service/grpc"
 	httpsvc "github.com/dapr/go-sdk/service/http"
@@ -51,12 +50,12 @@ func NewAsyncRuntime(port string, pattern string) (*Runtime, error) {
 	}
 
 	var handler dapr.Service
-	protocol := daprruntime.Protocol(os.Getenv(protocolEnvVar))
+	protocol := os.Getenv(protocolEnvVar)
 	switch protocol {
-	case daprruntime.HTTPProtocol:
+	case "http":
 		handler = httpsvc.NewService(fmt.Sprintf(":%s", port))
 	default:
-		protocol = daprruntime.GRPCProtocol
+		protocol = "grpc"
 		service, err := grpcsvc.NewService(fmt.Sprintf(":%s", port))
 		if err != nil {
 			klog.Errorf("failed to create dapr grpc service: %v\n", err)
@@ -66,7 +65,7 @@ func NewAsyncRuntime(port string, pattern string) (*Runtime, error) {
 	}
 
 	return &Runtime{
-		protocol:   string(protocol),
+		protocol:   protocol,
 		port:       port,
 		pattern:    pattern,
 		handler:    handler,
@@ -142,7 +141,7 @@ func (r *Runtime) RegisterOpenFunction(
 						PubsubName: input.ComponentName,
 						Topic:      input.Uri,
 					}
-					if r.protocol == string(daprruntime.HTTPProtocol) {
+					if r.protocol == "http" {
 						sub.Route = fmt.Sprintf("/%s", input.Uri)
 					}
 					funcErr = r.handler.AddTopicEventHandler(sub, func(c context.Context, e *dapr.TopicEvent) (retry bool, err error) {
