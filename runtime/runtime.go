@@ -135,7 +135,7 @@ func (rm *RuntimeManager) FunctionRunWrapperWithHooks(fn interface{}) {
 
 			rm.FuncContext.WithOut(out.GetOut())
 			rm.FuncContext.WithError(err)
-
+			rm.FuncOut = rm.FuncContext.GetOut()
 		} else if rm.FuncContext.GetSyncRequest().Request != nil {
 			var body []byte
 			// if it is a cloud event, we extract the cloudevent data as user data, and pass the raw cloud event in ctx
