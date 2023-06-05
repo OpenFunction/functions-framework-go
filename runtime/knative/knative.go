@@ -10,7 +10,7 @@ import (
 
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"k8s.io/klog/v2"
 
 	ofctx "github.com/OpenFunction/functions-framework-go/context"
@@ -30,7 +30,7 @@ const (
 type Runtime struct {
 	port    string
 	pattern string
-	handler *mux.Router
+	handler *chi.Mux
 }
 
 func NewKnativeRuntime(port string, pattern string) *Runtime {
@@ -40,7 +40,7 @@ func NewKnativeRuntime(port string, pattern string) *Runtime {
 	return &Runtime{
 		port:    port,
 		pattern: pattern,
-		handler: mux.NewRouter(),
+		handler: chi.NewRouter(),
 	}
 }
 
@@ -61,11 +61,10 @@ func (r *Runtime) RegisterOpenFunction(
 		ctx.InitDaprClientIfNil()
 	}
 
-	// Register the synchronous function (based on Knaitve runtime)
-	route := r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 		// save the Vars into the context
-		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
+		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.URLParamsFromCtx(r.Context()))
 		rm.FuncContext.SetNativeContext(_ctx)
 		rm.FuncContext.SetSyncRequest(w, r.WithContext(_ctx))
 		defer RecoverPanicHTTP(w, "Function panic")
@@ -84,12 +83,17 @@ func (r *Runtime) RegisterOpenFunction(
 		default:
 			return
 		}
-	})
+	}
 
-	// add methods matcher if provided
 	methods := rf.GetFunctionMethods()
+	// Register the synchronous function (based on Knaitve runtime)
 	if len(methods) > 0 {
-		route.Methods(methods...)
+		// add methods matcher if provided
+		for _, method := range methods {
+			r.handler.MethodFunc(method, rf.GetPath(), fn)
+		}
+	} else {
+		r.handler.HandleFunc(rf.GetPath(), fn)
 	}
 
 	return nil
@@ -101,20 +105,24 @@ func (r *Runtime) RegisterHTTPFunction(
 	postPlugins []plugin.Plugin,
 	rf *functions.RegisteredFunction,
 ) error {
-	route := r.handler.HandleFunc(rf.GetPath(), func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) {
 		rm := runtime.NewRuntimeManager(ctx, prePlugins, postPlugins)
 		// save the Vars into the context
-		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
+		_ctx := ofctx.CtxWithVars(r.Context(), ofctx.URLParamsFromCtx(r.Context()))
 		rm.FuncContext.SetNativeContext(_ctx)
 		rm.FuncContext.SetSyncRequest(w, r.WithContext(_ctx))
 		defer RecoverPanicHTTP(w, "Function panic")
 		rm.FunctionRunWrapperWithHooks(rf.GetHTTPFunction())
-	})
+	}
 
-	// add methods matcher if any
 	methods := rf.GetFunctionMethods()
 	if len(methods) > 0 {
-		route.Methods(methods...)
+		// add methods matcher if provided
+		for _, method := range methods {
+			r.handler.MethodFunc(method, rf.GetPath(), fn)
+		}
+	} else {
+		r.handler.HandleFunc(rf.GetPath(), fn)
 	}
 
 	return nil
@@ -150,8 +158,8 @@ func (r *Runtime) RegisterCloudEventFunction(
 	// function to extract Vars and add into ctx
 	withVars := func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := ofctx.CtxWithVars(r.Context(), ofctx.Vars(r))
-			next.ServeHTTP(w, r.WithContext(ctx))
+			_ctx := ofctx.CtxWithVars(r.Context(), ofctx.URLParamsFromCtx(r.Context()))
+			next.ServeHTTP(w, r.WithContext(_ctx))
 		})
 	}
 	r.handler.Handle(rf.GetPath(), withVars(handleFn))

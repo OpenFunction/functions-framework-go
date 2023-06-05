@@ -1,11 +1,11 @@
 package context
 
 import (
+	"net/http"
 	"os"
+	"reflect"
 	"strings"
 	"testing"
-	"net/http"
-	"reflect"
 )
 
 var (
@@ -108,8 +108,8 @@ var (
 // TestParseFunctionContext tests and verifies the function that parses the function FunctionContext
 func TestParseFunctionContext(t *testing.T) {
 	_, err := GetRuntimeContext()
-	if !strings.Contains(err.Error(), "env FUNC_CONTEXT not found") {
-		t.Fatal("Error parse function context")
+	if err != nil && !strings.Contains(err.Error(), "env FUNC_CONTEXT not found") {
+		t.Fatalf("Error parse function context: %s", err.Error())
 	}
 
 	// test `podName`, `podNamespace` field
@@ -295,7 +295,6 @@ func TestParseFunctionContext(t *testing.T) {
 	}
 }
 
-
 func TestGetVarsFromContext(t *testing.T) {
 
 	tests := []struct {
@@ -304,14 +303,14 @@ func TestGetVarsFromContext(t *testing.T) {
 		vars    map[string]string
 	}{
 		{
-			name: "single variable",
+			name:    "single variable",
 			request: &http.Request{},
-			vars: map[string]string{"key1": "val1"},
+			vars:    map[string]string{"key1": "val1"},
 		},
 		{
-			name: "multi variables",
+			name:    "multi variables",
 			request: &http.Request{},
-			vars: map[string]string{"key1": "val1", "key2": "val2"},
+			vars:    map[string]string{"key1": "val1", "key2": "val2"},
 		},
 	}
 	for _, tt := range tests {

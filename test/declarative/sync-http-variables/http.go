@@ -46,9 +46,9 @@ type Message struct {
 }
 
 func hello(w http.ResponseWriter, r *http.Request) {
-	vars := ofctx.VarsFromCtx(r.Context())
+	name := ofctx.URLParamFromCtx(r.Context(), "name")
 	response := map[string]string{
-		"hello": vars["name"],
+		"hello": name,
 	}
 	responseBytes, _ := json.Marshal(response)
 	w.Header().Set("Content-type", "application/json")
@@ -56,6 +56,8 @@ func hello(w http.ResponseWriter, r *http.Request) {
 }
 
 func hellov2(w http.ResponseWriter, r *http.Request) {
+	// keep for backward compatibility, same for example below
+	// suggest to use ofctx.URLParamFromCtx(...) to get vars
 	vars := ofctx.VarsFromCtx(r.Context())
 	response := map[string]string{
 		"hello": vars["name"],
@@ -66,16 +68,15 @@ func hellov2(w http.ResponseWriter, r *http.Request) {
 }
 
 func foo(ctx context.Context, ce cloudevents.Event) error {
-	vars := ofctx.VarsFromCtx(ctx)
-
 	msg := &Message{}
 	err := json.Unmarshal(ce.Data(), msg)
 	if err != nil {
 		return err
 	}
 
+	name := ofctx.URLParamFromCtx(ctx, "name")
 	response := map[string]string{
-		msg.Data: vars["name"],
+		msg.Data: name,
 	}
 	responseBytes, _ := json.Marshal(response)
 	klog.Infof("cloudevent - Data: %s", string(responseBytes))
@@ -100,15 +101,15 @@ func foov2(ctx context.Context, ce cloudevents.Event) error {
 }
 
 func bar(ctx ofctx.Context, in []byte) (ofctx.Out, error) {
-	vars := ofctx.VarsFromCtx(ctx.GetNativeContext())
 	msg := &Message{}
 	err := json.Unmarshal(in, msg)
 	if err != nil {
 		return ctx.ReturnOnInternalError(), err
 	}
 
+	name := ofctx.URLParamFromCtx(ctx.GetNativeContext(), "name")
 	response := map[string]string{
-		msg.Data: vars["name"],
+		msg.Data: name,
 	}
 	responseBytes, _ := json.Marshal(response)
 	return ctx.ReturnOnSuccess().WithData(responseBytes), nil
