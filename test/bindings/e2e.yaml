@@ -35,6 +35,14 @@ setup:
       path: manifests.yaml
       wait:
         - namespace: default
+          resource: deployments
+          label-selector: app=bindings-sender
+          for: condition=Available
+        - namespace: default
+          resource: deployments
+          label-selector: app=bindings-target
+          for: condition=Available
+        - namespace: default
           resource: pod
           label-selector: app=bindings-sender
           for: condition=Ready
