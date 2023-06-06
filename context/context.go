@@ -17,7 +17,7 @@ import (
 	cloudevents "github.com/cloudevents/sdk-go/v2"
 	dapr "github.com/dapr/go-sdk/client"
 	"github.com/dapr/go-sdk/service/common"
-	"github.com/gorilla/mux"
+	"github.com/go-chi/chi/v5"
 	"k8s.io/klog/v2"
 	agentv3 "skywalking.apache.org/repo/goapi/collect/language/agent/v3"
 )
@@ -966,11 +966,9 @@ const (
 	varsKey contextKey = iota
 )
 
-// Vars returns the route variables for the current request, if any.
-var (
-	Vars = mux.Vars
-)
-
+// CtxWithVars is just for backward compatibility of VarsFromCtx to the previous implementation using gorilla/mux
+// CtxWithVars adds URL Parameters into Context and user can get them by VarsFromCtx
+// However, the recommended way to read URL Parameter in go-chi/chi is using URLParamFromCtx
 func CtxWithVars(ctx context.Context, vars map[string]string) context.Context {
 	return context.WithValue(ctx, varsKey, vars)
 }
@@ -980,6 +978,24 @@ func VarsFromCtx(ctx context.Context) map[string]string {
 		return rv.(map[string]string)
 	}
 	return nil
+}
+
+// URLParamFromCtx returns the url parameter from a http.Request Context.
+func URLParamFromCtx(ctx context.Context, key string) string {
+	return chi.URLParamFromCtx(ctx, key)
+}
+
+// URLParamsFromCtx returns all the url parameters from a http.Request Context.
+func URLParamsFromCtx(ctx context.Context) map[string]string {
+	res := map[string]string{}
+	if rctx := chi.RouteContext(ctx); rctx != nil {
+		for k := 0; k < len(rctx.URLParams.Keys); k++ {
+			key := rctx.URLParams.Keys[k]
+			val := rctx.URLParams.Values[k]
+			res[key] = val
+		}
+	}
+	return res
 }
 
 func IsTracingProviderSkyWalking(ctx RuntimeContext) bool {

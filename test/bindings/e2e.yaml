@@ -19,7 +19,7 @@ setup:
     - name: install kafka operator
       command: |
         helm repo add strimzi https://strimzi.io/charts/
-        helm install kafka-operator -n default strimzi/strimzi-kafka-operator
+        helm install kafka-operator -n default strimzi/strimzi-kafka-operator --version 0.35.0
 
     - name: install kafka
       path: ../kafka.yaml
@@ -34,6 +34,14 @@ setup:
     - name: setup manifests
       path: manifests.yaml
       wait:
+        - namespace: default
+          resource: deployments
+          label-selector: app=bindings-sender
+          for: condition=Available
+        - namespace: default
+          resource: deployments
+          label-selector: app=bindings-target
+          for: condition=Available
         - namespace: default
           resource: pod
           label-selector: app=bindings-sender

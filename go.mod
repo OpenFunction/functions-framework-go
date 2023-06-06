@@ -8,9 +8,9 @@ require (
 	github.com/dapr/dapr v1.8.3
 	github.com/dapr/go-sdk v1.5.0
 	github.com/fatih/structs v1.1.0
+	github.com/go-chi/chi/v5 v5.0.8
 	github.com/golang/protobuf v1.5.2
 	github.com/google/uuid v1.3.0
-	github.com/gorilla/mux v1.8.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.4
 	google.golang.org/grpc v1.47.0
@@ -21,6 +21,7 @@ require (
 require (
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/go-logr/logr v1.2.3 // indirect
+	github.com/gorilla/mux v1.8.0 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/kr/pretty v0.3.0 // indirect
 	github.com/modern-go/concurrent v0.0.0-20180306012644-bacd9c7ef1dd // indirect
