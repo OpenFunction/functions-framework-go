@@ -13,7 +13,7 @@ require (
 	github.com/google/uuid v1.3.0
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.7.4
-	google.golang.org/grpc v1.47.0
+	google.golang.org/grpc v1.53.0
 	k8s.io/klog/v2 v2.30.0
 	skywalking.apache.org/repo/goapi v0.0.0-20220401015832-2c9eee9481eb
 )
@@ -32,11 +32,11 @@ require (
 	go.uber.org/goleak v1.1.12 // indirect
 	go.uber.org/multierr v1.7.0 // indirect
 	go.uber.org/zap v1.21.0 // indirect
-	golang.org/x/net v0.0.0-20220621193019-9d032be2e588 // indirect
-	golang.org/x/sys v0.0.0-20220520151302-bc2c85ada10a // indirect
-	golang.org/x/text v0.3.7 // indirect
-	google.golang.org/genproto v0.0.0-20220622171453-ea41d75dfa0f // indirect
-	google.golang.org/protobuf v1.28.0 // indirect
+	golang.org/x/net v0.5.0 // indirect
+	golang.org/x/sys v0.4.0 // indirect
+	golang.org/x/text v0.6.0 // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
 	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
