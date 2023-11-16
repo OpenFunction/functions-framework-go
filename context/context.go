@@ -757,6 +757,33 @@ func GetRuntimeContext() (RuntimeContext, error) {
 	}
 }
 
+func CloneRuntimeContext(ctx RuntimeContext) RuntimeContext {
+	return &FunctionContext{
+
+		Name:    ctx.GetName(),
+		Version: ctx.GetContext().Version,
+		Inputs:  ctx.GetInputs(),
+		Outputs: ctx.GetOutputs(),
+
+		Runtime: ctx.GetRuntime(),
+		Port:    ctx.GetPort(),
+		State:   ctx.GetContext().State,
+
+		PrePlugins:     ctx.GetPrePlugins(),
+		PostPlugins:    ctx.GetPostPlugins(),
+		PluginsTracing: ctx.GetContext().PluginsTracing,
+		HttpPattern:    ctx.GetHttpPattern(),
+
+		Event:        &EventRequest{},
+		SyncRequest:  &SyncRequest{},
+		mode:         ctx.GetMode(),
+		podName:      ctx.GetPodName(),
+		podNamespace: ctx.GetPodNamespace(),
+		options:      ctx.GetContext().options,
+		daprClient:   ctx.GetContext().daprClient,
+	}
+}
+
 func parseContext() (*FunctionContext, error) {
 	ctx := &FunctionContext{
 		Inputs:  make(map[string]*Input),
