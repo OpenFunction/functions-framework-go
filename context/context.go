@@ -752,8 +752,34 @@ func hasPlugin(plugins []string, target string) bool {
 func GetRuntimeContext() (RuntimeContext, error) {
 	if ctx, err := parseContext(); err != nil {
 		return nil, err
-	} else {
-		return ctx, nil
+	}
+	return ctx, nil
+}
+
+func CloneRuntimeContext(ctx RuntimeContext) RuntimeContext {
+	return &FunctionContext{
+
+		Name:    ctx.GetName(),
+		Version: ctx.GetContext().Version,
+		Inputs:  ctx.GetInputs(),
+		Outputs: ctx.GetOutputs(),
+
+		Runtime: ctx.GetRuntime(),
+		Port:    ctx.GetPort(),
+		State:   ctx.GetContext().State,
+
+		PrePlugins:     ctx.GetPrePlugins(),
+		PostPlugins:    ctx.GetPostPlugins(),
+		PluginsTracing: ctx.GetContext().PluginsTracing,
+		HttpPattern:    ctx.GetHttpPattern(),
+
+		Event:        &EventRequest{},
+		SyncRequest:  &SyncRequest{},
+		mode:         ctx.GetMode(),
+		podName:      ctx.GetPodName(),
+		podNamespace: ctx.GetPodNamespace(),
+		options:      ctx.GetContext().options,
+		daprClient:   ctx.GetContext().daprClient,
 	}
 }
 
