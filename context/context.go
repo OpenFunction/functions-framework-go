@@ -750,7 +750,8 @@ func hasPlugin(plugins []string, target string) bool {
 }
 
 func GetRuntimeContext() (RuntimeContext, error) {
-	if ctx, err := parseContext(); err != nil {
+	ctx, err := parseContext()
+	if err != nil {
 		return nil, err
 	}
 	return ctx, nil
