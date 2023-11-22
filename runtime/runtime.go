@@ -49,7 +49,7 @@ type RuntimeManager struct {
 }
 
 func NewRuntimeManager(funcContext ofctx.RuntimeContext, prePlugin []plugin.Plugin, postPlugin []plugin.Plugin) *RuntimeManager {
-	ctx := funcContext
+	ctx := ofctx.CloneRuntimeContext(funcContext)
 	rm := &RuntimeManager{
 		FuncContext: ctx,
 		prePlugins:  prePlugin,
