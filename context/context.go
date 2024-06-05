@@ -200,6 +200,8 @@ type Context interface {
 
 	// GetInputName return the inputName of the event
 	GetInputName() string
+
+	GetDaprClient() dapr.Client
 }
 
 type Out interface {
@@ -415,6 +417,10 @@ func (ctx *FunctionContext) Send(outputName string, data []byte) ([]byte, error)
 		return response.Data, nil
 	}
 	return nil, nil
+}
+
+func (ctx *FunctionContext) GetDaprClient() dapr.Client {
+	return ctx.daprClient
 }
 
 func (ctx *FunctionContext) HasInputs() bool {
